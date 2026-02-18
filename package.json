@@ -1,0 +1,27 @@
+{
+  "name": "continente-stamps-share",
+  "version": "1.0.0",
+  "description": "Continente Stamps Share - TypeScript monorepo with CQRS, Inversify, and Prisma",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "bun run build:shared && bun run --filter '*' dev",
+    "dev:server": "bun run --filter @stamps-share/server dev",
+    "dev:web": "bun run --filter @stamps-share/web dev",
+    "build": "bun run build:shared && bun run build:server && bun run build:web",
+    "build:shared": "bun run --filter @stamps-share/shared build",
+    "build:server": "bun run --filter @stamps-share/server build",
+    "build:web": "bun run --filter @stamps-share/web build",
+    "start": "bun run --filter @stamps-share/server start",
+    "lint": "bun run --filter '*' lint",
+    "typecheck": "bun run --filter '*' typecheck",
+    "test": "bun run --filter '*' test"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.3",
+    "@types/bun": "^1.1.0"
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "name": "@stamps-share/server",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "bun run --watch src/main.ts",
+    "build": "bun build ./src/main.ts --outdir ./dist --target bun --external bcrypt",
+    "start": "bun run dist/main.js",
+    "cli": "bun run src/cli.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "echo 'No linter configured'",
+    "test": "bun test",
+    "db:generate": "bunx prisma generate",
+    "db:migrate": "bunx prisma migrate dev",
+    "db:push": "bunx prisma db push",
+    "db:studio": "bunx prisma studio",
+    "db:seed": "bun run prisma/seed.ts"
+  },
+  "prisma": {
+    "seed": "bun run prisma/seed.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.0.0",
+    "@stamps-share/shared": "workspace:*",
+    "bcrypt": "^5.1.1",
+    "commander": "^12.1.0",
+    "hono": "^4.4.0",
+    "inversify": "^6.0.2",
+    "reflect-metadata": "^0.2.2",
+    "uuid": "^10.0.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/bcrypt": "^5.0.2",
+    "@types/uuid": "^10.0.0",
+    "prisma": "^6.0.0",
+    "typescript": "^5.5.3"
+  }
+}
