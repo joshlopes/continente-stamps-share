@@ -45,7 +45,7 @@ jobs:
           bun-version: latest
 
       - name: Install dependencies
-        run: bun install --frozen-lockfile
+        run: bun install
 
       - name: Build shared package
         run: bun run build:shared
@@ -66,7 +66,7 @@ jobs:
 
     services:
       postgres:
-        image: postgres:18-alpine
+        image: postgres:16-alpine
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
@@ -89,7 +89,7 @@ jobs:
           bun-version: latest
 
       - name: Install dependencies
-        run: bun install --frozen-lockfile
+        run: bun install
 
       - name: Build shared package
         run: bun run build:shared
@@ -97,8 +97,8 @@ jobs:
       - name: Generate Prisma client
         run: cd apps/server && bunx prisma generate
 
-      - name: Apply migrations to test database
-        run: cd apps/server && bunx prisma migrate deploy
+      - name: Apply schema to test database
+        run: cd apps/server && bunx prisma db push --force-reset
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/stamps_share_test
 
@@ -123,7 +123,7 @@ jobs:
           bun-version: latest
 
       - name: Install dependencies
-        run: bun install --frozen-lockfile
+        run: bun install
 
       - name: Build all packages
         run: |
