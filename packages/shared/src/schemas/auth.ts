@@ -1,73 +1,51 @@
 import { z } from 'zod';
 
-// User roles
-export const UserRoleSchema = z.enum(['SUPER_ADMIN', 'ADMIN']);
-export type UserRole = z.infer<typeof UserRoleSchema>;
+// ============================================================================
+// OTP Authentication
+// ============================================================================
 
-// User schema
-export const UserSchema = z.object({
-  id: z.string().uuid(),
-  email: z.string().email(),
-  name: z.string().nullable(),
-  role: UserRoleSchema,
-  isActive: z.boolean(),
-  createdAt: z.string(),
-  lastLoginAt: z.string().nullable(),
+export const SendOtpRequestSchema = z.object({
+  phone: z.string().min(9),
 });
+export type SendOtpRequest = z.infer<typeof SendOtpRequestSchema>;
 
-export type User = z.infer<typeof UserSchema>;
-
-// Login request/response
-export const LoginRequestSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(1),
+export const SendOtpResponseSchema = z.object({
+  success: z.boolean(),
+  phone: z.string(),
+  devCode: z.string().optional(), // Only in development
 });
+export type SendOtpResponse = z.infer<typeof SendOtpResponseSchema>;
 
-export type LoginRequest = z.infer<typeof LoginRequestSchema>;
+export const VerifyOtpRequestSchema = z.object({
+  phone: z.string().min(9),
+  code: z.string().length(6),
+});
+export type VerifyOtpRequest = z.infer<typeof VerifyOtpRequestSchema>;
 
-export const LoginResponseSchema = z.object({
-  user: UserSchema,
+export const VerifyOtpResponseSchema = z.object({
+  success: z.boolean(),
+  isNewUser: z.boolean(),
   token: z.string(),
   expiresAt: z.string(),
+  profile: z.any(), // ProfileSchema used at runtime
 });
+export type VerifyOtpResponse = z.infer<typeof VerifyOtpResponseSchema>;
 
-export type LoginResponse = z.infer<typeof LoginResponseSchema>;
-
-// Register request/response
-export const RegisterRequestSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
-  name: z.string().optional(),
-});
-
-export type RegisterRequest = z.infer<typeof RegisterRequestSchema>;
-
-export const RegisterResponseSchema = z.object({
-  user: UserSchema,
-  token: z.string(),
-  expiresAt: z.string(),
-});
-
-export type RegisterResponse = z.infer<typeof RegisterResponseSchema>;
-
-// Current user response (for /auth/me endpoint)
-export const MeResponseSchema = z.object({
-  user: UserSchema,
-});
-
-export type MeResponse = z.infer<typeof MeResponseSchema>;
-
-// Logout response
 export const LogoutResponseSchema = z.object({
   success: z.boolean(),
 });
-
 export type LogoutResponse = z.infer<typeof LogoutResponseSchema>;
 
-// Auth error response
 export const AuthErrorSchema = z.object({
   error: z.string(),
-  code: z.enum(['INVALID_CREDENTIALS', 'USER_NOT_FOUND', 'USER_INACTIVE', 'SESSION_EXPIRED', 'UNAUTHORIZED']).optional(),
+  code: z.enum([
+    'INVALID_OTP',
+    'OTP_EXPIRED',
+    'OTP_USED',
+    'TOO_MANY_ATTEMPTS',
+    'SESSION_EXPIRED',
+    'UNAUTHORIZED',
+    'FORBIDDEN',
+  ]).optional(),
 });
-
 export type AuthError = z.infer<typeof AuthErrorSchema>;

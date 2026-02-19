@@ -1,4 +1,4 @@
-// Prisma schema for Continente Stamps Share
+// Prisma schema for Continente Stamps Share (SeloTroca)
 // https://pris.ly/d/prisma-schema
 
 generator client {
@@ -13,30 +13,44 @@ datasource db {
 }
 
 // ============================================================================
-// User Authentication Domain
+// User Profiles & Authentication
 // ============================================================================
 
-enum UserRole {
-  SUPER_ADMIN
-  ADMIN
-}
+model Profile {
+  id                    String    @id @default(uuid())
+  phone                 String    @unique
+  displayName           String?   @map("display_name")
+  email                 String    @default("")
+  dateOfBirth           DateTime? @map("date_of_birth") @db.Date
+  district              String    @default("")
+  registrationComplete  Boolean   @default(false) @map("registration_complete")
+  isAdmin               Boolean   @default(false) @map("is_admin")
 
-model User {
-  id           String    @id @default(uuid())
-  email        String    @unique
-  passwordHash String    @map("password_hash")
-  name         String?
-  role         UserRole  @default(ADMIN)
-  isActive     Boolean   @default(true) @map("is_active")
-  createdAt    DateTime  @default(now()) @map("created_at")
-  updatedAt    DateTime  @updatedAt @map("updated_at")
-  lastLoginAt  DateTime? @map("last_login_at")
+  // Gamification
+  points                Int       @default(0)
+  level                 Int       @default(1)
+  tier                  Int       @default(1)
+  stampBalance          Int       @default(0) @map("stamp_balance")
+  weeklyStampsRequested Int       @default(0) @map("weekly_stamps_requested")
+  weeklyResetAt         DateTime  @default(now()) @map("weekly_reset_at")
+  totalOffered          Int       @default(0) @map("total_offered")
+  totalRequested        Int       @default(0) @map("total_requested")
 
-  sessions Session[]
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
 
-  @@index([email])
-  @@index([isActive])
-  @@map("users")
+  // Relations
+  sessions              Session[]
+  listings              StampListing[]          @relation("UserListings")
+  fulfilledListings     StampListing[]          @relation("FulfilledListings")
+  transactionsFrom      StampTransaction[]      @relation("TransactionsFrom")
+  transactionsTo        StampTransaction[]      @relation("TransactionsTo")
+  createdCollections    StampCollection[]       @relation("CreatedCollections")
+
+  @@index([phone])
+  @@index([points])
+  @@index([level])
+  @@map("profiles")
 }
 
 model Session {
@@ -49,10 +63,166 @@ model Session {
   userAgent    String?  @map("user_agent")
   ipAddress    String?  @map("ip_address")
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([token])
   @@index([expiresAt])
   @@map("sessions")
+}
+
+model OtpCode {
+  id        String   @id @default(uuid())
+  phone     String
+  code      String
+  expiresAt DateTime @map("expires_at")
+  used      Boolean  @default(false)
+  attempts  Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([phone])
+  @@index([phone, code, used])
+  @@map("otp_codes")
+}
+
+// ============================================================================
+// Stamp Marketplace
+// ============================================================================
+
+enum ListingType {
+  offer
+  request
+}
+
+enum ListingStatus {
+  pending_validation
+  active
+  fulfilled
+  cancelled
+  expired
+  rejected
+}
+
+model StampListing {
+  id              String        @id @default(uuid())
+  userId          String        @map("user_id")
+  type            ListingType
+  quantity        Int
+  collection      String?
+  notes           String?
+  status          ListingStatus @default(active)
+  fulfilledBy     String?       @map("fulfilled_by")
+  fulfilledAt     DateTime?     @map("fulfilled_at")
+  rejectionReason String?       @map("rejection_reason")
+  validatedBy     String?       @map("validated_by")
+  validatedAt     DateTime?     @map("validated_at")
+  expiresAt       DateTime?     @map("expires_at")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  user            Profile       @relation("UserListings", fields: [userId], references: [id])
+  fulfiller       Profile?      @relation("FulfilledListings", fields: [fulfilledBy], references: [id])
+  transactions    StampTransaction[]
+
+  @@index([userId, status, type])
+  @@index([status, type])
+  @@index([expiresAt])
+  @@map("stamp_listings")
+}
+
+enum TransactionType {
+  offer
+  request
+  exchange
+}
+
+model StampTransaction {
+  id         String          @id @default(uuid())
+  fromUserId String?         @map("from_user_id")
+  toUserId   String?         @map("to_user_id")
+  quantity   Int
+  listingId  String?         @map("listing_id")
+  pointsFrom Int             @default(0) @map("points_from")
+  pointsTo   Int             @default(0) @map("points_to")
+  type       TransactionType
+  createdAt  DateTime        @default(now()) @map("created_at")
+
+  fromUser   Profile?        @relation("TransactionsFrom", fields: [fromUserId], references: [id])
+  toUser     Profile?        @relation("TransactionsTo", fields: [toUserId], references: [id])
+  listing    StampListing?   @relation(fields: [listingId], references: [id])
+
+  @@index([fromUserId])
+  @@index([toUserId])
+  @@index([listingId])
+  @@map("stamp_transactions")
+}
+
+// ============================================================================
+// Collections Catalog
+// ============================================================================
+
+model StampCollection {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  imageUrl    String?  @map("image_url")
+  startsAt    DateTime @map("starts_at") @db.Date
+  endsAt      DateTime @map("ends_at") @db.Date
+  isActive    Boolean  @default(true) @map("is_active")
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdBy   String?  @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  creator     Profile? @relation("CreatedCollections", fields: [createdBy], references: [id])
+  items       CollectionItem[]
+
+  @@index([isActive, endsAt])
+  @@map("stamp_collections")
+}
+
+model CollectionItem {
+  id           String   @id @default(uuid())
+  collectionId String   @map("collection_id")
+  name         String
+  subtitle     String?
+  imageUrl     String?  @map("image_url")
+  isOutOfStock Boolean  @default(false) @map("is_out_of_stock")
+  sortOrder    Int      @default(0) @map("sort_order")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  collection   StampCollection    @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  options      RedemptionOption[]
+
+  @@index([collectionId, sortOrder])
+  @@map("collection_items")
+}
+
+model RedemptionOption {
+  id             String   @id @default(uuid())
+  itemId         String   @map("item_id")
+  stampsRequired Int      @map("stamps_required")
+  feeEuros       Decimal  @default(0.00) @map("fee_euros") @db.Decimal(10, 2)
+  label          String?
+  sortOrder      Int      @default(0) @map("sort_order")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  item           CollectionItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([itemId, sortOrder])
+  @@map("redemption_options")
+}
+
+// ============================================================================
+// App Settings
+// ============================================================================
+
+model AppSettings {
+  id              String   @id @default("global")
+  adminDevicePhone String  @default("") @map("admin_device_phone")
+  updatedAt       DateTime @default(now()) @map("updated_at")
+  updatedBy       String?  @map("updated_by")
+
+  @@map("app_settings")
 }

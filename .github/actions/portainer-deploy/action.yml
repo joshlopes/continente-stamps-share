@@ -1,0 +1,89 @@
+name: 'Deploy to Portainer'
+description: 'Deploy a Docker Compose stack to Portainer'
+
+inputs:
+  portainer-url:
+    description: 'Portainer API URL'
+    required: true
+  portainer-access-token:
+    description: 'Portainer API access token'
+    required: true
+  stack-id:
+    description: 'Portainer stack ID to update'
+    required: true
+  endpoint-id:
+    description: 'Portainer endpoint ID'
+    required: true
+  stack-file:
+    description: 'Path to the stack file (docker-compose yaml)'
+    required: true
+  version:
+    description: 'Version to deploy (replaces ${APP_VERSION} in stack file)'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Prepare stack file with version
+      id: prepare-stack
+      shell: bash
+      run: |
+        # Replace APP_VERSION placeholder with actual version
+        sed "s/\${APP_VERSION}/${{ inputs.version }}/g" ${{ inputs.stack-file }} > /tmp/stack.yaml
+        echo "Stack file prepared with version ${{ inputs.version }}"
+
+    - name: Fetch current stack from Portainer
+      id: fetch-stack
+      shell: bash
+      run: |
+        # GET /api/stacks/{id} to retrieve current stack definition
+        HTTP_STATUS=$(curl -s -o /tmp/current_stack.json -w "%{http_code}" \
+          -X GET \
+          -H "X-API-Key: ${{ inputs.portainer-access-token }}" \
+          "${{ inputs.portainer-url }}/api/stacks/${{ inputs.stack-id }}")
+
+        if [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 300 ]; then
+          echo "Successfully fetched current stack definition"
+          # Extract Env array and save to file (no logging of values)
+          jq '.Env // []' /tmp/current_stack.json > /tmp/current_env.json
+          echo "Found $(jq length /tmp/current_env.json) environment variables"
+        else
+          echo "Failed to fetch current stack (HTTP $HTTP_STATUS)"
+          exit 1
+        fi
+
+    - name: Deploy stack to Portainer
+      shell: bash
+      run: |
+        STACK_CONTENT=$(cat /tmp/stack.yaml)
+
+        # Build the JSON payload with stackFileContent and preserved Env
+        jq -n \
+          --arg content "$STACK_CONTENT" \
+          --slurpfile env /tmp/current_env.json \
+          '{
+            "stackFileContent": $content,
+            "env": $env[0],
+            "prune": true,
+            "pullImage": true
+          }' > /tmp/update_payload.json
+
+        HTTP_STATUS=$(curl -s -o /tmp/response.json -w "%{http_code}" \
+          -X PUT \
+          -H "X-API-Key: ${{ inputs.portainer-access-token }}" \
+          -H "Content-Type: application/json" \
+          "${{ inputs.portainer-url }}/api/stacks/${{ inputs.stack-id }}?endpointId=${{ inputs.endpoint-id }}" \
+          -d @/tmp/update_payload.json)
+
+        echo "HTTP Status: $HTTP_STATUS"
+        # Only log non-sensitive response metadata
+        jq '{Id, Name, Status, CreationDate, UpdateDate}' /tmp/response.json 2>/dev/null || echo "Could not parse response"
+
+        if [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 300 ]; then
+          echo "Stack deployed successfully!"
+        else
+          echo "Failed to deploy stack"
+          # Log error message only (Portainer error responses don't contain secrets)
+          jq '.message // .error // .' /tmp/response.json 2>/dev/null || cat /tmp/response.json
+          exit 1
+        fi

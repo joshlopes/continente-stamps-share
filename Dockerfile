@@ -16,14 +16,14 @@ WORKDIR /app
 RUN apk add --no-cache python3 make g++
 
 # Copy only package files first (maximizes Docker layer cache)
-COPY package.json bun.lock ./
+COPY package.json bun.lock* ./
 COPY apps/server/package.json ./apps/server/
 COPY apps/web/package.json ./apps/web/
 COPY packages/shared/package.json ./packages/shared/
 
 # Install all dependencies with cache mount for faster rebuilds
 RUN --mount=type=cache,target=/root/.bun/install/cache \
-    bun install --frozen-lockfile
+    bun install
 
 # -----------------------------------------------------------------------------
 # Stage 2: Builder - Build everything in one stage
@@ -51,12 +51,12 @@ FROM oven/bun:1.3-alpine AS prod-deps
 
 WORKDIR /app
 
-COPY package.json bun.lock ./
+COPY package.json bun.lock* ./
 COPY apps/server/package.json ./apps/server/
 COPY packages/shared/package.json ./packages/shared/
 
 RUN --mount=type=cache,target=/root/.bun/install/cache \
-    bun install --production --frozen-lockfile
+    bun install --production
 
 # -----------------------------------------------------------------------------
 # Stage 4: Production runtime

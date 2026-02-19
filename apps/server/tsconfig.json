@@ -10,10 +10,10 @@
     "declaration": true,
     "outDir": "./dist",
     "rootDir": ".",
-    "experimentalDecorators": true,
-    "emitDecoratorMetadata": true,
-    "strictPropertyInitialization": false
+    "paths": {
+      "@stamps-share/shared": ["../../packages/shared/src/index.ts"]
+    }
   },
-  "include": ["src/**/*", "generated/**/*", "tests/**/*"],
+  "include": ["src/**/*", "generated/**/*"],
   "exclude": ["node_modules", "dist"]
 }

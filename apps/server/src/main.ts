@@ -1,23 +1,13 @@
-import { createContainer } from './container.js';
+import { PrismaClient } from '../generated/prisma/index.js';
 import { createApp } from './Ui/Http/routes.js';
 
-const PORT = parseInt(process.env.PORT || '4587', 10);
+const prisma = new PrismaClient();
+const app = createApp(prisma);
 
-async function main() {
-  const container = createContainer();
-  const app = createApp(container);
+const port = parseInt(process.env.PORT || '4587');
+console.log(`Server starting on port ${port}`);
 
-  console.log(`🚀 Server starting on port ${PORT}`);
-  
-  Bun.serve({
-    port: PORT,
-    fetch: app.fetch,
-  });
-
-  console.log(`✅ Server running at http://localhost:${PORT}`);
-}
-
-main().catch((error) => {
-  console.error('Server Error:', error);
-  process.exit(1);
-});
+export default {
+  port,
+  fetch: app.fetch,
+};

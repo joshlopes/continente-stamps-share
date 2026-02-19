@@ -4,9 +4,8 @@
   "type": "module",
   "scripts": {
     "dev": "bun run --watch src/main.ts",
-    "build": "bun build ./src/main.ts --outdir ./dist --target bun --external bcrypt",
+    "build": "bun build ./src/main.ts --outdir ./dist --target bun",
     "start": "bun run dist/main.js",
-    "cli": "bun run src/cli.ts",
     "typecheck": "tsc --noEmit",
     "lint": "echo 'No linter configured'",
     "test": "bun test",
@@ -22,17 +21,10 @@
   "dependencies": {
     "@prisma/client": "^6.0.0",
     "@stamps-share/shared": "workspace:*",
-    "bcrypt": "^5.1.1",
-    "commander": "^12.1.0",
     "hono": "^4.4.0",
-    "inversify": "^6.0.2",
-    "reflect-metadata": "^0.2.2",
-    "uuid": "^10.0.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
-    "@types/bcrypt": "^5.0.2",
-    "@types/uuid": "^10.0.0",
     "prisma": "^6.0.0",
     "typescript": "^5.5.3"
   }

@@ -1,0 +1,43 @@
+services:
+  app:
+    image: docker.io/joshlopes/continente-stamps-share:${APP_VERSION}
+    container_name: stamps-share
+    environment:
+      DATABASE_URL: "postgresql://stampsshare:stampsshare@postgres:5432/stamps_share"
+      JWT_SECRET: "change-me-in-production"
+      NODE_ENV: "production"
+      PORT: "4587"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - proxy
+      - internal
+
+  postgres:
+    image: postgres:18-alpine
+    container_name: stamps-share-postgres
+    environment:
+      POSTGRES_USER: stampsshare
+      POSTGRES_PASSWORD: stampsshare
+      POSTGRES_DB: stamps_share
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U stampsshare"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - internal
+
+networks:
+  proxy:
+    external: true
+  internal:
+    driver: bridge
+
+volumes:
+  postgres_data:
