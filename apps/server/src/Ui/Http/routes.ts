@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
-import type { PrismaClient } from '../../../generated/prisma/index.js';
+import type { PrismaClient } from '../../../generated/prisma/client.js';
 import { authRoutes } from './auth.js';
 import { profileRoutes } from './profile.js';
 import { listingRoutes } from './listings.js';

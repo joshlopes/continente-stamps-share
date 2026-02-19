@@ -1,4 +1,4 @@
-import type { PrismaClient } from '../../generated/prisma/index.js';
+import type { PrismaClient } from '../../generated/prisma/client.js';
 
 const SESSION_DURATION_HOURS = 24;
 

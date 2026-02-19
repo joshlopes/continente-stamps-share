@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import type { PrismaClient } from '../../../generated/prisma/index.js';
+import type { PrismaClient } from '../../../generated/prisma/client.js';
 
 export function leaderboardRoutes(prisma: PrismaClient): Hono {
   const app = new Hono();
