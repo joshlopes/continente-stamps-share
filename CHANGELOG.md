@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.0](https://github.com/Ez-Web-Lda/continente-stamps-share/compare/v1.1.0...v1.2.0) (2026-02-19)
+
+
+### Features
+
+* otp ([#5](https://github.com/Ez-Web-Lda/continente-stamps-share/issues/5)) ([c753154](https://github.com/Ez-Web-Lda/continente-stamps-share/commit/c753154594551387978935cbfc6941869e1eafba))
+
 ## [1.1.0](https://github.com/Ez-Web-Lda/continente-stamps-share/compare/v1.0.0...v1.1.0) (2026-02-19)
 
 
