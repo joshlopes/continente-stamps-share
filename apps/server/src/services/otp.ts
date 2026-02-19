@@ -1,4 +1,5 @@
 import type { PrismaClient } from '../../generated/prisma/client.js';
+import { sendOtpSms } from './sms.js';
 
 const OTP_EXPIRY_MINUTES = 10;
 const MAX_OTP_ATTEMPTS = 5;
@@ -72,8 +73,13 @@ export async function sendOtp(
     },
   });
 
-  // In production, send SMS here
-  // await smsService.send(normalizedPhone, `Your SeloTroca code is: ${code}`);
+  // Send SMS with OTP code
+  const smsResult = await sendOtpSms(normalizedPhone, code);
+  if (!smsResult.success) {
+    console.error(`[OTP] Failed to send SMS to ${normalizedPhone}:`, smsResult.error);
+    // Don't throw - the OTP is still created and can be used
+    // In development, the code is returned in the response anyway
+  }
 
   return { phone: normalizedPhone, code };
 }
