@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import type { AppEnv } from './types.js';
-import type { PrismaClient } from '../../../generated/prisma/index.js';
+import type { PrismaClient } from '../../../generated/prisma/client.js';
 import { SendOtpRequestSchema, VerifyOtpRequestSchema } from '@stamps-share/shared';
 import { normalizePhone, sendOtp, verifyOtp } from '../../services/otp.js';
 import { createSession, deleteSession } from '../../services/auth.js';

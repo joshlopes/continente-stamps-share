@@ -19,13 +19,16 @@
     "seed": "bun run prisma/seed.ts"
   },
   "dependencies": {
-    "@prisma/client": "^6.0.0",
+    "@prisma/adapter-pg": "^7.0.0",
+    "@prisma/client": "^7.0.0",
     "@stamps-share/shared": "workspace:*",
     "hono": "^4.4.0",
+    "pg": "^8.13.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
-    "prisma": "^6.0.0",
+    "@types/pg": "^8.11.0",
+    "prisma": "^7.0.0",
     "typescript": "^5.5.3"
   }
 }
