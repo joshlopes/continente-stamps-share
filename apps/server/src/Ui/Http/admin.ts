@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import type { AppEnv } from './types.js';
 import type { PrismaClient } from '../../../generated/prisma/index.js';
 import {
   CreateCollectionRequestSchema,
@@ -70,8 +71,8 @@ function serializeCollection(collection: Record<string, unknown>) {
   return result;
 }
 
-export function adminRoutes(prisma: PrismaClient): Hono {
-  const app = new Hono();
+export function adminRoutes(prisma: PrismaClient): Hono<AppEnv> {
+  const app = new Hono<AppEnv>();
 
   // All admin routes require admin middleware
   app.use('*', adminMiddleware(prisma));

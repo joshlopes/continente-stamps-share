@@ -7,7 +7,7 @@ interface OnboardingPageProps {
   onComplete: (data: { displayName: string; email: string; dateOfBirth: string; district: string }) => Promise<void>;
 }
 
-export function OnboardingPage({ phone, onComplete }: OnboardingPageProps) {
+export function OnboardingPage({ onComplete }: OnboardingPageProps) {
   const [step, setStep] = useState(0);
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');

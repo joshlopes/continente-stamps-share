@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Shield, CheckCircle, XCircle, Clock, Package, Settings, BookOpen, Plus, Trash2, Save, X, AlertCircle, ChevronDown, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Shield, CheckCircle, XCircle, Clock, Package, Settings, BookOpen, Plus, Trash2, Save, AlertCircle, ChevronDown, ChevronRight } from 'lucide-react';
 import type { StampListingWithProfile, StampCollectionWithItems } from '@stamps-share/shared';
 import { getTierStyle, formatEuros } from '../lib/constants';
 import { api } from '../api/client';

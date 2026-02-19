@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import type { AppEnv } from './types.js';
 import type { PrismaClient } from '../../../generated/prisma/index.js';
 import { UpdateProfileRequestSchema } from '@stamps-share/shared';
 import { authMiddleware } from './middleware.js';
@@ -15,8 +16,8 @@ function serializeProfile(profile: Record<string, unknown>) {
   };
 }
 
-export function profileRoutes(prisma: PrismaClient): Hono {
-  const app = new Hono();
+export function profileRoutes(prisma: PrismaClient): Hono<AppEnv> {
+  const app = new Hono<AppEnv>();
 
   // All profile routes require authentication
   app.use('*', authMiddleware(prisma));

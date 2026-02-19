@@ -10,10 +10,7 @@
     "declaration": true,
     "outDir": "./dist",
     "rootDir": ".",
-    "baseUrl": ".",
-    "paths": {
-      "@stamps-share/shared": ["../../packages/shared/src/index.ts"]
-    }
+    "baseUrl": "."
   },
   "include": ["src/**/*", "generated/**/*"],
   "exclude": ["node_modules", "dist"]

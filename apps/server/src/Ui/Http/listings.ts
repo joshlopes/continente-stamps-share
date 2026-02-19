@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import type { AppEnv } from './types.js';
 import type { PrismaClient } from '../../../generated/prisma/index.js';
 import { CreateListingRequestSchema } from '@stamps-share/shared';
 import { authMiddleware, optionalAuthMiddleware } from './middleware.js';
@@ -35,8 +36,8 @@ function serializeListing(listing: Record<string, unknown>) {
   return result;
 }
 
-export function listingRoutes(prisma: PrismaClient): Hono {
-  const app = new Hono();
+export function listingRoutes(prisma: PrismaClient): Hono<AppEnv> {
+  const app = new Hono<AppEnv>();
 
   /**
    * GET /

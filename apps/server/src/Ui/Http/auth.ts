@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import type { AppEnv } from './types.js';
 import type { PrismaClient } from '../../../generated/prisma/index.js';
 import { SendOtpRequestSchema, VerifyOtpRequestSchema } from '@stamps-share/shared';
 import { normalizePhone, sendOtp, verifyOtp } from '../../services/otp.js';
@@ -17,8 +18,8 @@ function serializeProfile(profile: Record<string, unknown>) {
   };
 }
 
-export function authRoutes(prisma: PrismaClient): Hono {
-  const app = new Hono();
+export function authRoutes(prisma: PrismaClient): Hono<AppEnv> {
+  const app = new Hono<AppEnv>();
 
   /**
    * POST /send-otp
