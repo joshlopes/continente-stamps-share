@@ -1,23 +1,25 @@
 /**
- * SMS Service for sending text messages.
- * Supports Twilio as the provider with a mock fallback for development.
+ * Twilio Verify Service for OTP verification.
+ * Uses Twilio Verify API for sending and checking verification codes.
+ * Twilio handles code generation, delivery, rate limiting, and fraud prevention.
  */
 
-export interface SmsResult {
+export interface VerifyResult {
   success: boolean;
-  messageId?: string;
+  status?: string;
   error?: string;
 }
 
-export interface SmsProvider {
-  send(to: string, message: string): Promise<SmsResult>;
+export interface VerifyProvider {
+  sendVerification(to: string): Promise<VerifyResult>;
+  checkVerification(to: string, code: string): Promise<VerifyResult>;
 }
 
 /**
- * Format phone number for SMS sending.
+ * Format phone number for Twilio Verify.
  * Ensures the number has the + prefix for international format.
  */
-function formatPhoneForSms(phone: string): string {
+function formatPhoneForVerify(phone: string): string {
   const digits = phone.replace(/\D/g, '');
   // If it starts with country code (351 for Portugal), add +
   if (digits.startsWith('351')) {
@@ -32,72 +34,140 @@ function formatPhoneForSms(phone: string): string {
 }
 
 /**
- * Mock SMS provider for development/testing.
- * Logs messages to console instead of sending.
+ * Mock Verify provider for development/testing.
+ * Always accepts code "123456" for testing.
  */
-export class MockSmsProvider implements SmsProvider {
-  async send(to: string, message: string): Promise<SmsResult> {
-    const formattedPhone = formatPhoneForSms(to);
-    console.log(`[MockSMS] To: ${formattedPhone}`);
-    console.log(`[MockSMS] Message: ${message}`);
+export class MockVerifyProvider implements VerifyProvider {
+  async sendVerification(to: string): Promise<VerifyResult> {
+    const formattedPhone = formatPhoneForVerify(to);
+    console.log(`[MockVerify] Sending verification to: ${formattedPhone}`);
+    console.log(`[MockVerify] Use code "123456" to verify`);
     return {
       success: true,
-      messageId: `mock-${Date.now()}`,
+      status: 'pending',
     };
+  }
+
+  async checkVerification(to: string, code: string): Promise<VerifyResult> {
+    const formattedPhone = formatPhoneForVerify(to);
+    console.log(`[MockVerify] Checking code "${code}" for: ${formattedPhone}`);
+    // Accept "123456" as valid code in mock mode
+    if (code === '123456') {
+      return { success: true, status: 'approved' };
+    }
+    return { success: false, status: 'pending', error: 'INVALID_OTP' };
   }
 }
 
 /**
- * Twilio SMS provider for production.
+ * Twilio Verify provider for production.
+ * Uses Twilio Verify API for secure OTP verification.
  */
-export class TwilioSmsProvider implements SmsProvider {
+export class TwilioVerifyProvider implements VerifyProvider {
   private accountSid: string;
   private authToken: string;
-  private fromNumber: string;
+  private serviceSid: string;
 
-  constructor(accountSid: string, authToken: string, fromNumber: string) {
+  constructor(accountSid: string, authToken: string, serviceSid: string) {
     this.accountSid = accountSid;
     this.authToken = authToken;
-    this.fromNumber = fromNumber;
+    this.serviceSid = serviceSid;
   }
 
-  async send(to: string, message: string): Promise<SmsResult> {
-    const formattedPhone = formatPhoneForSms(to);
+  private getAuthHeader(): string {
+    return `Basic ${Buffer.from(`${this.accountSid}:${this.authToken}`).toString('base64')}`;
+  }
+
+  async sendVerification(to: string): Promise<VerifyResult> {
+    const formattedPhone = formatPhoneForVerify(to);
 
     try {
-      // Use Twilio REST API directly (no SDK dependency)
-      const url = `https://api.twilio.com/2010-04-01/Accounts/${this.accountSid}/Messages.json`;
+      const url = `https://verify.twilio.com/v2/Services/${this.serviceSid}/Verifications`;
 
       const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
-          Authorization: `Basic ${Buffer.from(`${this.accountSid}:${this.authToken}`).toString('base64')}`,
+          Authorization: this.getAuthHeader(),
         },
         body: new URLSearchParams({
           To: formattedPhone,
-          From: this.fromNumber,
-          Body: message,
+          Channel: 'sms',
         }),
       });
 
-      const data = await response.json() as { sid?: string; message?: string; code?: number };
+      const data = await response.json() as { status?: string; message?: string; code?: number };
 
       if (!response.ok) {
-        console.error('[TwilioSMS] Error:', data);
+        console.error('[TwilioVerify] Send error:', data);
         return {
           success: false,
           error: data.message || `HTTP ${response.status}`,
         };
       }
 
-      console.log(`[TwilioSMS] Sent to ${formattedPhone}, SID: ${data.sid}`);
+      console.log(`[TwilioVerify] Verification sent to ${formattedPhone}, status: ${data.status}`);
       return {
         success: true,
-        messageId: data.sid,
+        status: data.status,
       };
     } catch (error) {
-      console.error('[TwilioSMS] Exception:', error);
+      console.error('[TwilioVerify] Send exception:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+  }
+
+  async checkVerification(to: string, code: string): Promise<VerifyResult> {
+    const formattedPhone = formatPhoneForVerify(to);
+
+    try {
+      const url = `https://verify.twilio.com/v2/Services/${this.serviceSid}/VerificationCheck`;
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          Authorization: this.getAuthHeader(),
+        },
+        body: new URLSearchParams({
+          To: formattedPhone,
+          Code: code,
+        }),
+      });
+
+      const data = await response.json() as { status?: string; message?: string; code?: number; valid?: boolean };
+
+      if (!response.ok) {
+        console.error('[TwilioVerify] Check error:', data);
+        // Map Twilio errors to our error codes
+        if (data.code === 20404) {
+          return { success: false, error: 'OTP_EXPIRED' };
+        }
+        if (data.code === 60202) {
+          return { success: false, error: 'TOO_MANY_ATTEMPTS' };
+        }
+        return {
+          success: false,
+          error: data.message || `HTTP ${response.status}`,
+        };
+      }
+
+      const isApproved = data.status === 'approved';
+      console.log(`[TwilioVerify] Check for ${formattedPhone}, status: ${data.status}`);
+
+      if (!isApproved) {
+        return { success: false, status: data.status, error: 'INVALID_OTP' };
+      }
+
+      return {
+        success: true,
+        status: data.status,
+      };
+    } catch (error) {
+      console.error('[TwilioVerify] Check exception:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -107,43 +177,50 @@ export class TwilioSmsProvider implements SmsProvider {
 }
 
 /**
- * Create the appropriate SMS provider based on environment configuration.
+ * Create the appropriate Verify provider based on environment configuration.
  */
-export function createSmsProvider(): SmsProvider {
+export function createVerifyProvider(): VerifyProvider {
   const accountSid = process.env.TWILIO_ACCOUNT_SID;
   const authToken = process.env.TWILIO_AUTH_TOKEN;
-  const fromNumber = process.env.TWILIO_PHONE_NUMBER;
+  const serviceSid = process.env.TWILIO_VERIFY_SERVICE_SID;
 
-  // Use Twilio if all credentials are configured
-  if (accountSid && authToken && fromNumber) {
-    console.log('[SMS] Using Twilio provider');
-    return new TwilioSmsProvider(accountSid, authToken, fromNumber);
+  // Use Twilio Verify if all credentials are configured
+  if (accountSid && authToken && serviceSid) {
+    console.log('[Verify] Using Twilio Verify provider');
+    return new TwilioVerifyProvider(accountSid, authToken, serviceSid);
   }
 
   // Fallback to mock provider
-  console.log('[SMS] Using Mock provider (no Twilio credentials configured)');
-  return new MockSmsProvider();
+  console.log('[Verify] Using Mock provider (no Twilio credentials configured)');
+  return new MockVerifyProvider();
 }
 
 // Singleton instance
-let smsProvider: SmsProvider | null = null;
+let verifyProvider: VerifyProvider | null = null;
 
 /**
- * Get the SMS provider instance (singleton).
+ * Get the Verify provider instance (singleton).
  */
-export function getSmsProvider(): SmsProvider {
-  if (!smsProvider) {
-    smsProvider = createSmsProvider();
+export function getVerifyProvider(): VerifyProvider {
+  if (!verifyProvider) {
+    verifyProvider = createVerifyProvider();
   }
-  return smsProvider;
+  return verifyProvider;
 }
 
 /**
- * Send an OTP code via SMS.
+ * Send OTP verification via Twilio Verify.
  */
-export async function sendOtpSms(phone: string, code: string): Promise<SmsResult> {
-  const provider = getSmsProvider();
-  const message = `SeloTroca: O seu codigo de verificacao e ${code}. Valido por 10 minutos.`;
-  return provider.send(phone, message);
+export async function sendOtpVerification(phone: string): Promise<VerifyResult> {
+  const provider = getVerifyProvider();
+  return provider.sendVerification(phone);
+}
+
+/**
+ * Check OTP verification via Twilio Verify.
+ */
+export async function checkOtpVerification(phone: string, code: string): Promise<VerifyResult> {
+  const provider = getVerifyProvider();
+  return provider.checkVerification(phone, code);
 }
 
