@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.0](https://github.com/Ez-Web-Lda/continente-stamps-share/compare/v1.0.0...v1.1.0) (2026-02-19)
+
+
+### Features
+
+* use prisma 7 ([#3](https://github.com/Ez-Web-Lda/continente-stamps-share/issues/3)) ([fcf2ca7](https://github.com/Ez-Web-Lda/continente-stamps-share/commit/fcf2ca7f059a6589e50bf2c7822f72aedb4bbd41))
+
 ## 1.0.0 (2026-02-19)
 
 
