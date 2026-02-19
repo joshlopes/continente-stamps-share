@@ -1,0 +1,17 @@
+# Changelog
+
+## 1.0.0 (2026-02-19)
+
+
+### Features
+
+* import SeloTroca stamp exchange platform ([7310c32](https://github.com/Ez-Web-Lda/continente-stamps-share/commit/7310c32e65d5537238308d95e6cddd1f0b5a7d34))
+* Import SeloTroca stamp exchange platform ([1c2d39b](https://github.com/Ez-Web-Lda/continente-stamps-share/commit/1c2d39b565e0fe914df5537a51c956391610d7e3))
+* initial project setup ([9fdc9cf](https://github.com/Ez-Web-Lda/continente-stamps-share/commit/9fdc9cf95a0f5391cbad6f1a1f118d611db98ac2))
+
+
+### Bug Fixes
+
+* add missing web package.json to Docker prod-deps stage ([3c09438](https://github.com/Ez-Web-Lda/continente-stamps-share/commit/3c094381d03b48c58427b13f37a6328b5f73a694))
+* resolve CI lint and typecheck failures ([d5ece88](https://github.com/Ez-Web-Lda/continente-stamps-share/commit/d5ece887ba7aa4014a89e0d7c62fb9f7c4ee927b))
+* resolve TypeScript build and typecheck errors ([d52e60c](https://github.com/Ez-Web-Lda/continente-stamps-share/commit/d52e60c336f63c63669b7c9d73e9074e2cfd58a8))
