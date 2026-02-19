@@ -4,6 +4,7 @@ import type { Profile } from '@stamps-share/shared';
 import { PORTUGAL_DISTRICTS, getTierStyle } from '../lib/constants';
 import { useMarketplace } from '../hooks/useMarketplace';
 import { ListingCard } from '../components/marketplace/ListingCard';
+import { api } from '../api/client';
 
 interface ProfilePageProps {
   profile: Profile;
@@ -18,9 +19,15 @@ export function ProfilePage({ profile, onUpdate, onProfileUpdate }: ProfilePageP
   const [district, setDistrict] = useState(profile.district || '');
   const [saving, setSaving] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [appVersion, setAppVersion] = useState<string | null>(null);
   const { listings, loading, fetchListings, cancelListing } = useMarketplace();
 
   const tierStyle = getTierStyle(profile.tier);
+
+  // Fetch app version on mount
+  useEffect(() => {
+    api.getHealth().then((health) => setAppVersion(health.version)).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (showHistory) {
@@ -277,11 +284,16 @@ export function ProfilePage({ profile, onUpdate, onProfileUpdate }: ProfilePageP
         </div>
       </div>
 
-      {/* Member since */}
-      <div className="text-center py-2">
+      {/* Member since & App version */}
+      <div className="text-center py-2 space-y-1">
         <p className="text-xs text-slate-400">
           Membro desde {new Date(profile.createdAt).toLocaleDateString('pt-PT')}
         </p>
+        {appVersion && (
+          <p className="text-[10px] text-slate-300">
+            Versao {appVersion}
+          </p>
+        )}
       </div>
     </div>
   );

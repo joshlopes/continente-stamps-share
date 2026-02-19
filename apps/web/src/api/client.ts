@@ -40,6 +40,11 @@ class ApiClient {
     return res.json();
   }
 
+  // Health
+  async getHealth() {
+    return this.request<{ status: string; version: string; timestamp: string }>('/api/health');
+  }
+
   // Auth
   async sendOtp(phone: string) {
     return this.request<{ success: boolean; phone: string; devCode?: string }>('/api/auth/send-otp', {

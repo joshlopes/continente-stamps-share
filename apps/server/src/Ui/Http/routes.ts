@@ -8,6 +8,9 @@ import { collectionRoutes } from './collections.js';
 import { leaderboardRoutes } from './leaderboard.js';
 import { adminRoutes } from './admin.js';
 
+// App version from environment variable (set at build time) or fallback
+const APP_VERSION = process.env.APP_VERSION || '1.0.0';
+
 export function createApp(prisma: PrismaClient): Hono {
   const app = new Hono();
 
@@ -20,8 +23,13 @@ export function createApp(prisma: PrismaClient): Hono {
   }));
 
   // Health check endpoints
-  app.get('/health', (c) => c.json({ status: 'ok', timestamp: new Date().toISOString() }));
-  app.get('/api/health', (c) => c.json({ status: 'ok', timestamp: new Date().toISOString() }));
+  const healthResponse = () => ({
+    status: 'ok',
+    version: APP_VERSION,
+    timestamp: new Date().toISOString(),
+  });
+  app.get('/health', (c) => c.json(healthResponse()));
+  app.get('/api/health', (c) => c.json(healthResponse()));
 
   // API Routes
   app.route('/api/auth', authRoutes(prisma));

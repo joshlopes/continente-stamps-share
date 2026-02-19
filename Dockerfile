@@ -65,6 +65,10 @@ RUN --mount=type=cache,target=/root/.bun/install/cache \
 # -----------------------------------------------------------------------------
 FROM oven/bun:1.3-alpine AS production
 
+# Build argument for app version
+ARG APP_VERSION=1.0.0
+ENV APP_VERSION=${APP_VERSION}
+
 WORKDIR /app
 
 # Install runtime dependencies

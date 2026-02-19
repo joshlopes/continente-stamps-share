@@ -1,7 +1,7 @@
 import type { PrismaClient } from '../../generated/prisma/client.js';
+import { sendOtpVerification, checkOtpVerification } from './sms.js';
 
 const OTP_EXPIRY_MINUTES = 10;
-const MAX_OTP_ATTEMPTS = 5;
 
 /**
  * Normalize Portuguese phone numbers.
@@ -34,22 +34,21 @@ export function normalizePhone(phone: string): string {
 }
 
 /**
- * Generate a random 6-digit OTP code.
+ * Generate a random 6-digit OTP code (used for mock/fallback only).
  */
 export function generateOtp(): string {
   return String(Math.floor(100000 + Math.random() * 900000));
 }
 
 /**
- * Send OTP: invalidate previous codes for this phone, create new one.
- * Returns the phone and code (in production, code would be sent via SMS).
+ * Send OTP via Twilio Verify.
+ * Creates a tracking record in the database and sends verification via Twilio.
  */
 export async function sendOtp(
   prisma: PrismaClient,
   phone: string,
 ): Promise<{ phone: string; code: string }> {
   const normalizedPhone = normalizePhone(phone);
-  const code = generateOtp();
   const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
 
   // Invalidate all previous unused OTPs for this phone
@@ -63,24 +62,31 @@ export async function sendOtp(
     },
   });
 
-  // Create new OTP
+  // Create tracking record (code is placeholder - Twilio generates the real one)
+  // We use "TWILIO" as code to indicate it's handled by Twilio Verify
   await prisma.otpCode.create({
     data: {
       phone: normalizedPhone,
-      code,
+      code: 'TWILIO_VERIFY',
       expiresAt,
     },
   });
 
-  // In production, send SMS here
-  // await smsService.send(normalizedPhone, `Your SeloTroca code is: ${code}`);
+  // Send verification via Twilio Verify
+  const verifyResult = await sendOtpVerification(normalizedPhone);
+  if (!verifyResult.success) {
+    console.error(`[OTP] Failed to send verification to ${normalizedPhone}:`, verifyResult.error);
+    // Don't throw - in mock mode, code "123456" will work
+  }
 
-  return { phone: normalizedPhone, code };
+  // Return placeholder code - in production, user receives code via SMS from Twilio
+  // In mock mode, use "123456"
+  return { phone: normalizedPhone, code: '******' };
 }
 
 /**
- * Verify OTP code for a phone number.
- * Finds matching unused non-expired OTP, increments attempts, marks as used on success.
+ * Verify OTP code via Twilio Verify.
+ * Twilio handles rate limiting, expiry, and code validation.
  */
 export async function verifyOtp(
   prisma: PrismaClient,
@@ -89,6 +95,7 @@ export async function verifyOtp(
 ): Promise<{ success: boolean; error?: string }> {
   const normalizedPhone = normalizePhone(phone);
 
+  // Check if there's a pending verification record
   const otpRecord = await prisma.otpCode.findFirst({
     where: {
       phone: normalizedPhone,
@@ -102,27 +109,20 @@ export async function verifyOtp(
     return { success: false, error: 'OTP_EXPIRED' };
   }
 
-  // Check max attempts
-  if (otpRecord.attempts >= MAX_OTP_ATTEMPTS) {
+  // Verify code via Twilio Verify
+  const verifyResult = await checkOtpVerification(normalizedPhone, code);
+
+  if (!verifyResult.success) {
+    // Increment attempts for tracking
     await prisma.otpCode.update({
       where: { id: otpRecord.id },
-      data: { used: true },
+      data: { attempts: { increment: 1 } },
     });
-    return { success: false, error: 'TOO_MANY_ATTEMPTS' };
+
+    return { success: false, error: verifyResult.error || 'INVALID_OTP' };
   }
 
-  // Increment attempts
-  await prisma.otpCode.update({
-    where: { id: otpRecord.id },
-    data: { attempts: { increment: 1 } },
-  });
-
-  // Check code match
-  if (otpRecord.code !== code) {
-    return { success: false, error: 'INVALID_OTP' };
-  }
-
-  // Mark as used
+  // Mark as used on success
   await prisma.otpCode.update({
     where: { id: otpRecord.id },
     data: { used: true },
