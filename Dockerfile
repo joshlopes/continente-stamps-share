@@ -20,6 +20,7 @@ COPY package.json bun.lock* ./
 COPY apps/server/package.json ./apps/server/
 COPY apps/web/package.json ./apps/web/
 COPY packages/shared/package.json ./packages/shared/
+COPY apps/web/package.json ./apps/web/
 
 # Install all dependencies with cache mount for faster rebuilds
 RUN --mount=type=cache,target=/root/.bun/install/cache \
@@ -54,6 +55,7 @@ WORKDIR /app
 COPY package.json bun.lock* ./
 COPY apps/server/package.json ./apps/server/
 COPY packages/shared/package.json ./packages/shared/
+COPY apps/web/package.json ./apps/web/
 
 RUN --mount=type=cache,target=/root/.bun/install/cache \
     bun install --production
