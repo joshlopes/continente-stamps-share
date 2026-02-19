@@ -1,6 +1,6 @@
 {
   "name": "continente-stamps-share",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Continente Stamps Share - TypeScript monorepo with CQRS, Inversify, and Prisma",
   "private": true,
   "workspaces": [
