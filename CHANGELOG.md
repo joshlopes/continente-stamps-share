@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.2](https://github.com/Ez-Web-Lda/continente-stamps-share/compare/v1.2.1...v1.2.2) (2026-02-20)
+
+
+### Bug Fixes
+
+* preserve /api/ prefix in nginx proxy pass ([#9](https://github.com/Ez-Web-Lda/continente-stamps-share/issues/9)) ([b53b79e](https://github.com/Ez-Web-Lda/continente-stamps-share/commit/b53b79ed587e3c07ff0baf63deacc31210de039c))
+
 ## [1.2.1](https://github.com/Ez-Web-Lda/continente-stamps-share/compare/v1.2.0...v1.2.1) (2026-02-20)
 
 
