@@ -1,4 +1,6 @@
-const API_BASE = import.meta.env.API_URL || 'http://localhost:4587';
+// In production, use relative URLs (same origin via nginx proxy)
+// In development, use localhost:4587
+const API_BASE = import.meta.env.PROD ? '' : 'http://localhost:4587';
 
 class ApiClient {
   private token: string | null = null;
