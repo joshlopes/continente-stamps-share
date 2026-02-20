@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.1](https://github.com/Ez-Web-Lda/continente-stamps-share/compare/v1.2.0...v1.2.1) (2026-02-20)
+
+
+### Bug Fixes
+
+* prod api ([#7](https://github.com/Ez-Web-Lda/continente-stamps-share/issues/7)) ([4f3f12f](https://github.com/Ez-Web-Lda/continente-stamps-share/commit/4f3f12f15c37f89d54229da8a8ba8fbf0b567611))
+
 ## [1.2.0](https://github.com/Ez-Web-Lda/continente-stamps-share/compare/v1.1.0...v1.2.0) (2026-02-19)
 
 
