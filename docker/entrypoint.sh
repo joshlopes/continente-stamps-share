@@ -48,7 +48,8 @@ fi
 # Run database migrations
 echo "Running database migrations..."
 cd /app/apps/server
-bunx prisma migrate deploy || {
+# Use --schema flag to bypass prisma.config.ts (which requires prisma devDependency)
+bunx prisma migrate deploy --schema=prisma/schema.prisma || {
   echo "Warning: Migration failed, container will continue..."
 }
 

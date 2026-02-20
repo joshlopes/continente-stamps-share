@@ -89,7 +89,6 @@ COPY --from=prod-deps /app/apps/server/node_modules ./apps/server/node_modules
 COPY --from=builder /app/apps/server/src ./apps/server/src
 COPY --from=builder /app/apps/server/generated ./apps/server/generated
 COPY --from=builder /app/apps/server/prisma ./apps/server/prisma
-COPY --from=builder /app/apps/server/prisma.config.ts ./apps/server/
 COPY --from=builder /app/apps/server/package.json ./apps/server/
 COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
 COPY --from=builder /app/packages/shared/package.json ./packages/shared/
