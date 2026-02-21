@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.0](https://github.com/Ez-Web-Lda/continente-stamps-share/compare/v1.2.3...v1.3.0) (2026-02-21)
+
+
+### Features
+
+* redesign collections page with grid view and add audit logging ([#13](https://github.com/Ez-Web-Lda/continente-stamps-share/issues/13)) ([13ecc1e](https://github.com/Ez-Web-Lda/continente-stamps-share/commit/13ecc1eb8b59950e532229728588e60fadbdd0cc))
+
 ## [1.2.3](https://github.com/Ez-Web-Lda/continente-stamps-share/compare/v1.2.2...v1.2.3) (2026-02-20)
 
 
