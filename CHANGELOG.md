@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.3](https://github.com/Ez-Web-Lda/continente-stamps-share/compare/v1.2.2...v1.2.3) (2026-02-20)
+
+
+### Bug Fixes
+
+* use --schema flag for prisma migrate in production ([#11](https://github.com/Ez-Web-Lda/continente-stamps-share/issues/11)) ([9536fce](https://github.com/Ez-Web-Lda/continente-stamps-share/commit/9536fce6089286cf417b737dcc140a90a50b5a4f))
+
 ## [1.2.2](https://github.com/Ez-Web-Lda/continente-stamps-share/compare/v1.2.1...v1.2.2) (2026-02-20)
 
 
