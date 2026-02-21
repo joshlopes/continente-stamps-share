@@ -27,3 +27,6 @@ export const TIER_STYLES: TierStyle[] = [
 export function getTierStyle(tier: number): TierStyle {
   return TIER_STYLES.find((t) => t.tier === tier) ?? TIER_STYLES[0];
 }
+
+// Alias for compatibility with source project naming
+export const getTierInfo = getTierStyle;

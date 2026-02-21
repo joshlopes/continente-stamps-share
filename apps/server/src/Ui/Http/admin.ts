@@ -8,7 +8,8 @@ import {
   RejectOfferRequestSchema,
 } from '@stamps-share/shared';
 import { adminMiddleware } from './middleware.js';
-import { awardOfferBalance } from '../../services/gamification.js';
+import { awardOfferBalance, awardRequestFulfilled } from '../../services/gamification.js';
+import { logOfferApproved, logOfferRejected, logRequestFulfilled } from '../../services/audit.js';
 
 function serializeListing(listing: Record<string, unknown>) {
   return {
@@ -39,13 +40,80 @@ function serializeListing(listing: Record<string, unknown>) {
   };
 }
 
+function serializeListingWithPhone(listing: Record<string, unknown>) {
+  return {
+    ...listing,
+    fulfilledAt: listing.fulfilledAt
+      ? (listing.fulfilledAt as Date).toISOString()
+      : null,
+    validatedAt: listing.validatedAt
+      ? (listing.validatedAt as Date).toISOString()
+      : null,
+    expiresAt: listing.expiresAt
+      ? (listing.expiresAt as Date).toISOString()
+      : null,
+    createdAt: (listing.createdAt as Date).toISOString(),
+    updatedAt: (listing.updatedAt as Date).toISOString(),
+    user: listing.user
+      ? (() => {
+          const u = listing.user as Record<string, unknown>;
+          return {
+            id: u.id,
+            displayName: u.displayName,
+            phone: u.phone,
+            level: u.level,
+            tier: u.tier,
+            points: u.points,
+          };
+        })()
+      : undefined,
+  };
+}
+
+function serializeDateField(value: unknown): string {
+  if (value instanceof Date) {
+    // Check if the date is valid
+    if (!isNaN(value.getTime())) {
+      return value.toISOString();
+    }
+    // Invalid date - return a fallback
+    return String(value);
+  }
+  // Handle string dates (e.g., "2026-02-20" from DATE columns)
+  if (typeof value === 'string') {
+    return value;
+  }
+  return String(value);
+}
+
+function serializeDateOnlyField(value: unknown): string {
+  if (value instanceof Date) {
+    // Check if the date is valid
+    if (!isNaN(value.getTime())) {
+      return value.toISOString().split('T')[0];
+    }
+    // Invalid date - try to extract year-month-day from string representation
+    const str = String(value);
+    const match = str.match(/(\d{4})-(\d{2})-(\d{2})/);
+    if (match) {
+      return `${match[1]}-${match[2]}-${match[3]}`;
+    }
+    return str;
+  }
+  // Handle string dates (e.g., "2026-02-20" from DATE columns)
+  if (typeof value === 'string') {
+    return value.split('T')[0];
+  }
+  return String(value);
+}
+
 function serializeCollection(collection: Record<string, unknown>) {
   const result: Record<string, unknown> = {
     ...collection,
-    startsAt: (collection.startsAt as Date).toISOString().split('T')[0],
-    endsAt: (collection.endsAt as Date).toISOString().split('T')[0],
-    createdAt: (collection.createdAt as Date).toISOString(),
-    updatedAt: (collection.updatedAt as Date).toISOString(),
+    startsAt: serializeDateOnlyField(collection.startsAt),
+    endsAt: serializeDateOnlyField(collection.endsAt),
+    createdAt: serializeDateField(collection.createdAt),
+    updatedAt: serializeDateField(collection.updatedAt),
   };
 
   delete result.creator;
@@ -54,14 +122,14 @@ function serializeCollection(collection: Record<string, unknown>) {
     result.items = (collection.items as Record<string, unknown>[]).map((item) => {
       const serializedItem: Record<string, unknown> = {
         ...item,
-        createdAt: (item.createdAt as Date).toISOString(),
-        updatedAt: (item.updatedAt as Date).toISOString(),
+        createdAt: serializeDateField(item.createdAt),
+        updatedAt: serializeDateField(item.updatedAt),
       };
       if (Array.isArray(item.options)) {
         serializedItem.options = (item.options as Record<string, unknown>[]).map((opt) => ({
           ...opt,
           feeEuros: Number(opt.feeEuros),
-          createdAt: (opt.createdAt as Date).toISOString(),
+          createdAt: serializeDateField(opt.createdAt),
         }));
       }
       return serializedItem;
@@ -96,6 +164,7 @@ export function adminRoutes(prisma: PrismaClient): Hono<AppEnv> {
           user: {
             select: {
               id: true,
+              phone: true,
               displayName: true,
               level: true,
               tier: true,
@@ -107,7 +176,7 @@ export function adminRoutes(prisma: PrismaClient): Hono<AppEnv> {
       });
 
       return c.json({
-        offers: offers.map((o) => serializeListing(o as unknown as Record<string, unknown>)),
+        offers: offers.map((o) => serializeListingWithPhone(o as unknown as Record<string, unknown>)),
       });
     } catch (error) {
       console.error('Error fetching pending offers:', error);
@@ -118,12 +187,24 @@ export function adminRoutes(prisma: PrismaClient): Hono<AppEnv> {
   /**
    * PUT /offers/:id/approve
    * Approve an offer and award balance to the user.
+   * Accepts optional { quantity } in body to adjust the actual amount received.
    */
   app.put('/offers/:id/approve', async (c) => {
     const profile = c.get('profile') as { id: string };
     const offerId = c.req.param('id');
 
     try {
+      // Parse optional quantity adjustment from body
+      let adjustedQuantity: number | undefined;
+      try {
+        const body = await c.req.json();
+        if (body && typeof body.quantity === 'number' && body.quantity > 0) {
+          adjustedQuantity = body.quantity;
+        }
+      } catch {
+        // No body or invalid JSON - use original quantity
+      }
+
       const offer = await prisma.stampListing.findUnique({
         where: { id: offerId },
       });
@@ -136,14 +217,19 @@ export function adminRoutes(prisma: PrismaClient): Hono<AppEnv> {
         return c.json({ error: 'Offer is not pending validation' }, 400);
       }
 
-      // Award balance to the offerer
-      await awardOfferBalance(prisma, offer.userId, offer.quantity);
+      // Use adjusted quantity if provided, otherwise use original
+      const finalQuantity = adjustedQuantity ?? offer.quantity;
 
-      // Update listing status
+      // Award balance to the offerer with the final quantity
+      await awardOfferBalance(prisma, offer.userId, finalQuantity);
+
+      // Update listing status to fulfilled (offer complete, stamps received)
+      // Also update quantity if it was adjusted
       const updated = await prisma.stampListing.update({
         where: { id: offerId },
         data: {
-          status: 'active',
+          status: 'fulfilled',
+          quantity: finalQuantity,
           validatedBy: profile.id,
           validatedAt: new Date(),
         },
@@ -151,6 +237,7 @@ export function adminRoutes(prisma: PrismaClient): Hono<AppEnv> {
           user: {
             select: {
               id: true,
+              phone: true,
               displayName: true,
               level: true,
               tier: true,
@@ -160,8 +247,22 @@ export function adminRoutes(prisma: PrismaClient): Hono<AppEnv> {
         },
       });
 
+      // Audit log
+      await logOfferApproved(prisma, {
+        id: offer.id,
+        userId: offer.userId,
+        originalQuantity: offer.quantity,
+        approvedQuantity: finalQuantity,
+      }, {
+        actorId: profile.id,
+        ipAddress: c.req.header('x-forwarded-for') ?? c.req.header('x-real-ip'),
+        userAgent: c.req.header('user-agent'),
+      });
+
       return c.json({
-        offer: serializeListing(updated as unknown as Record<string, unknown>),
+        offer: serializeListingWithPhone(updated as unknown as Record<string, unknown>),
+        quantityAdjusted: adjustedQuantity !== undefined && adjustedQuantity !== offer.quantity,
+        originalQuantity: offer.quantity,
       });
     } catch (error) {
       console.error('Error approving offer:', error);
@@ -222,12 +323,132 @@ export function adminRoutes(prisma: PrismaClient): Hono<AppEnv> {
         },
       });
 
+      // Audit log
+      await logOfferRejected(prisma, {
+        id: offer.id,
+        userId: offer.userId,
+        reason,
+      }, {
+        actorId: profile.id,
+        ipAddress: c.req.header('x-forwarded-for') ?? c.req.header('x-real-ip'),
+        userAgent: c.req.header('user-agent'),
+      });
+
       return c.json({
         offer: serializeListing(updated as unknown as Record<string, unknown>),
       });
     } catch (error) {
       console.error('Error rejecting offer:', error);
       return c.json({ error: 'Failed to reject offer' }, 500);
+    }
+  });
+
+  // ============================================================================
+  // Request Management
+  // ============================================================================
+
+  /**
+   * GET /active-requests
+   * Get requests with status 'active' including user phone number.
+   */
+  app.get('/active-requests', async (c) => {
+    try {
+      const requests = await prisma.stampListing.findMany({
+        where: {
+          type: 'request',
+          status: 'active',
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              displayName: true,
+              phone: true,
+              level: true,
+              tier: true,
+              points: true,
+            },
+          },
+        },
+        orderBy: { createdAt: 'asc' },
+      });
+
+      return c.json({
+        requests: requests.map((r) => serializeListingWithPhone(r as unknown as Record<string, unknown>)),
+      });
+    } catch (error) {
+      console.error('Error fetching active requests:', error);
+      return c.json({ error: 'Failed to fetch active requests' }, 500);
+    }
+  });
+
+  /**
+   * PUT /requests/:id/fulfill
+   * Mark a request as fulfilled (stamps sent by admin).
+   */
+  app.put('/requests/:id/fulfill', async (c) => {
+    const profile = c.get('profile') as { id: string };
+    const requestId = c.req.param('id');
+
+    try {
+      const request = await prisma.stampListing.findUnique({
+        where: { id: requestId },
+      });
+
+      if (!request) {
+        return c.json({ error: 'Request not found' }, 404);
+      }
+
+      if (request.type !== 'request') {
+        return c.json({ error: 'This is not a request' }, 400);
+      }
+
+      if (request.status !== 'active') {
+        return c.json({ error: 'Request is not active' }, 400);
+      }
+
+      // Award points to the requester
+      await awardRequestFulfilled(prisma, request.userId, request.quantity);
+
+      // Update listing status to fulfilled
+      const updated = await prisma.stampListing.update({
+        where: { id: requestId },
+        data: {
+          status: 'fulfilled',
+          fulfilledBy: profile.id,
+          fulfilledAt: new Date(),
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              displayName: true,
+              phone: true,
+              level: true,
+              tier: true,
+              points: true,
+            },
+          },
+        },
+      });
+
+      // Audit log
+      await logRequestFulfilled(prisma, {
+        id: request.id,
+        userId: request.userId,
+        quantity: request.quantity,
+      }, {
+        actorId: profile.id,
+        ipAddress: c.req.header('x-forwarded-for') ?? c.req.header('x-real-ip'),
+        userAgent: c.req.header('user-agent'),
+      });
+
+      return c.json({
+        request: serializeListingWithPhone(updated as unknown as Record<string, unknown>),
+      });
+    } catch (error) {
+      console.error('Error fulfilling request:', error);
+      return c.json({ error: 'Failed to fulfill request' }, 500);
     }
   });
 
@@ -585,6 +806,45 @@ export function adminRoutes(prisma: PrismaClient): Hono<AppEnv> {
     } catch (error) {
       console.error('Error creating redemption option:', error);
       return c.json({ error: 'Failed to create option' }, 500);
+    }
+  });
+
+  /**
+   * DELETE /collections/:collectionId/items/:itemId/options/:optionId
+   * Delete a redemption option.
+   */
+  app.delete('/collections/:collectionId/items/:itemId/options/:optionId', async (c) => {
+    const collectionId = c.req.param('collectionId');
+    const itemId = c.req.param('itemId');
+    const optionId = c.req.param('optionId');
+
+    try {
+      // Verify the item belongs to the collection
+      const item = await prisma.collectionItem.findFirst({
+        where: { id: itemId, collectionId },
+      });
+
+      if (!item) {
+        return c.json({ error: 'Item not found' }, 404);
+      }
+
+      // Verify the option belongs to the item
+      const option = await prisma.redemptionOption.findFirst({
+        where: { id: optionId, itemId },
+      });
+
+      if (!option) {
+        return c.json({ error: 'Option not found' }, 404);
+      }
+
+      await prisma.redemptionOption.delete({
+        where: { id: optionId },
+      });
+
+      return c.json({ success: true });
+    } catch (error) {
+      console.error('Error deleting redemption option:', error);
+      return c.json({ error: 'Failed to delete option' }, 500);
     }
   });
 

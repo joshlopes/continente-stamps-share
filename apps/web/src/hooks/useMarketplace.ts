@@ -13,7 +13,7 @@ export function useMarketplace() {
       if (type) params.type = type;
       if (userId) params.userId = userId;
       if (status) params.status = status;
-      else params.status = 'active';
+      // Don't default to 'active' - let caller decide what statuses to fetch
       const { listings: data } = await api.getListings(params);
       setListings(data);
     } finally {

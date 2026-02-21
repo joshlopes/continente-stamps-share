@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Stamp } from 'lucide-react';
 import { PhoneAuth } from '../components/auth/PhoneAuth';
 import { OTPVerification } from '../components/auth/OTPVerification';
 
@@ -9,69 +10,67 @@ interface AuthPageProps {
 
 export function AuthPage({ onSendOtp, onVerifyOtp }: AuthPageProps) {
   const [step, setStep] = useState<'phone' | 'otp'>('phone');
-  const [phone, setPhone] = useState('');
+  const [normalizedPhone, setNormalizedPhone] = useState('');
   const [devCode, setDevCode] = useState<string | undefined>();
-  const [loading, setLoading] = useState(false);
 
-  const handleSendOtp = async (phoneNumber: string) => {
-    setLoading(true);
-    try {
-      const result = await onSendOtp(phoneNumber);
-      setPhone(phoneNumber);
-      setDevCode(result.devCode);
-      setStep('otp');
-    } finally {
-      setLoading(false);
-    }
+  const handleSendOtp = async (phone: string) => {
+    const result = await onSendOtp(phone);
+    setNormalizedPhone(result.phone);
+    setDevCode(result.devCode);
+    setStep('otp');
+    return result;
   };
 
-  const handleVerifyOtp = async (code: string) => {
-    setLoading(true);
-    try {
-      await onVerifyOtp(phone, code);
-    } finally {
-      setLoading(false);
-    }
+  const handleResend = async () => {
+    const result = await onSendOtp(normalizedPhone);
+    setDevCode(result.devCode);
   };
 
   return (
     <div className="min-h-screen bg-[#f5f5f0] flex flex-col">
-      {/* Top gradient */}
-      <div className="h-48 bg-gradient-to-br from-green-500 to-emerald-600 stamp-pattern relative">
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[#f5f5f0]" />
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-0 right-0 w-[300px] h-[300px] rounded-full bg-green-200/30 blur-3xl -translate-y-1/2 translate-x-1/4" />
+        <div className="absolute bottom-0 left-0 w-[250px] h-[250px] rounded-full bg-amber-200/20 blur-3xl translate-y-1/2 -translate-x-1/4" />
       </div>
 
-      {/* Card */}
-      <div className="flex-1 flex flex-col items-center -mt-20 px-4 pb-8">
-        <div className="w-full max-w-sm">
-          {/* Logo */}
-          <div className="text-center mb-6">
-            <div className="w-16 h-16 bg-white rounded-2xl shadow-card-md flex items-center justify-center mx-auto mb-3">
-              <span className="text-3xl">🎫</span>
+      <div className="flex-1 flex flex-col justify-between p-6 relative max-w-sm mx-auto w-full">
+        <div className="pt-12">
+          <div className="flex items-center gap-3 mb-12">
+            <div className="w-11 h-11 rounded-2xl bg-green-600 flex items-center justify-center shadow-lg shadow-green-300/40">
+              <Stamp className="w-5 h-5 text-white" strokeWidth={2.5} />
             </div>
-            <h1 className="text-2xl font-bold text-slate-900">SeloTroca</h1>
-            <p className="text-sm text-slate-500 mt-1">Troca de selos Continente</p>
+            <div>
+              <p className="font-black text-slate-900 text-lg tracking-tight leading-none">SeloTroca</p>
+              <p className="text-xs font-medium text-slate-400 mt-0.5">Troca de selos do supermercado</p>
+            </div>
           </div>
 
-          {/* Auth form */}
-          <div className="bg-white rounded-2xl p-5 shadow-card-md border border-slate-100">
-            {step === 'phone' ? (
-              <PhoneAuth onSubmit={handleSendOtp} loading={loading} />
-            ) : (
-              <OTPVerification
-                phone={phone}
-                onVerify={handleVerifyOtp}
-                onBack={() => setStep('phone')}
-                loading={loading}
-                devCode={devCode}
-              />
-            )}
-          </div>
+          {step === 'phone' ? (
+            <PhoneAuth onSubmit={handleSendOtp} />
+          ) : (
+            <OTPVerification
+              phone={normalizedPhone}
+              devCode={devCode}
+              onVerify={(code) => onVerifyOtp(normalizedPhone, code)}
+              onBack={() => setStep('phone')}
+              onResend={handleResend}
+            />
+          )}
+        </div>
 
-          {/* Footer */}
-          <p className="text-center text-[10px] text-slate-400 mt-6">
-            Ao continuar, aceitas os nossos termos de utilizacao e politica de privacidade.
-          </p>
+        <div className="pb-8 pt-6">
+          <div className="flex gap-4 text-center">
+            {[
+              { emoji: '🌱', text: '5 selos/sem\nnível Iniciante' },
+              { emoji: '⭐', text: '6+ selos/sem\ncom pontos' },
+              { emoji: '👑', text: '10 selos/sem\nMestre' },
+            ].map(({ emoji, text }) => (
+              <div key={emoji} className="flex-1 bg-white rounded-2xl p-3 shadow-card">
+                <p className="text-xl mb-1">{emoji}</p>
+                <p className="text-[10px] font-semibold text-slate-500 whitespace-pre-line leading-tight">{text}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>

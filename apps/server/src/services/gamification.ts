@@ -51,7 +51,7 @@ export async function awardOfferBalance(
     data: {
       stampBalance: { increment: quantity },
       points: newPoints,
-      totalOffered: { increment: 1 },
+      totalOffered: { increment: quantity },
       level: newLevel,
       tier: newTier,
     },
@@ -79,7 +79,34 @@ export async function reverseOfferBalance(
     data: {
       stampBalance: { decrement: quantity },
       points: newPoints,
-      totalOffered: { decrement: 1 },
+      totalOffered: { decrement: quantity },
+      level: newLevel,
+      tier: newTier,
+    },
+  });
+}
+
+/**
+ * Award points to a user when their request is fulfilled by admin.
+ * points += quantity * POINTS_PER_REQUEST, totalRequested += quantity,
+ * recalculate level/tier.
+ */
+export async function awardRequestFulfilled(
+  prisma: PrismaClient,
+  userId: string,
+  quantity: number,
+): Promise<void> {
+  const profile = await prisma.profile.findUniqueOrThrow({ where: { id: userId } });
+
+  const newPoints = profile.points + quantity * POINTS_PER_REQUEST;
+  const newLevel = calculateLevel(newPoints);
+  const newTier = calculateTier(newLevel);
+
+  await prisma.profile.update({
+    where: { id: userId },
+    data: {
+      points: newPoints,
+      totalRequested: { increment: quantity },
       level: newLevel,
       tier: newTier,
     },

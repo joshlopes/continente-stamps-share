@@ -1,13 +1,44 @@
 import { Hono } from 'hono';
 import type { PrismaClient } from '../../../generated/prisma/client.js';
 
+function serializeDateField(value: unknown): string {
+  if (value instanceof Date) {
+    if (!isNaN(value.getTime())) {
+      return value.toISOString();
+    }
+    return String(value);
+  }
+  if (typeof value === 'string') {
+    return value;
+  }
+  return String(value);
+}
+
+function serializeDateOnlyField(value: unknown): string {
+  if (value instanceof Date) {
+    if (!isNaN(value.getTime())) {
+      return value.toISOString().split('T')[0];
+    }
+    const str = String(value);
+    const match = str.match(/(\d{4})-(\d{2})-(\d{2})/);
+    if (match) {
+      return `${match[1]}-${match[2]}-${match[3]}`;
+    }
+    return str;
+  }
+  if (typeof value === 'string') {
+    return value.split('T')[0];
+  }
+  return String(value);
+}
+
 function serializeCollection(collection: Record<string, unknown>) {
   const result: Record<string, unknown> = {
     ...collection,
-    startsAt: (collection.startsAt as Date).toISOString().split('T')[0],
-    endsAt: (collection.endsAt as Date).toISOString().split('T')[0],
-    createdAt: (collection.createdAt as Date).toISOString(),
-    updatedAt: (collection.updatedAt as Date).toISOString(),
+    startsAt: serializeDateOnlyField(collection.startsAt),
+    endsAt: serializeDateOnlyField(collection.endsAt),
+    createdAt: serializeDateField(collection.createdAt),
+    updatedAt: serializeDateField(collection.updatedAt),
   };
 
   // Remove creator relation if present (not needed in public API)
@@ -19,8 +50,8 @@ function serializeCollection(collection: Record<string, unknown>) {
     result.items = (collection.items as Record<string, unknown>[]).map((item) => {
       const serializedItem: Record<string, unknown> = {
         ...item,
-        createdAt: (item.createdAt as Date).toISOString(),
-        updatedAt: (item.updatedAt as Date).toISOString(),
+        createdAt: serializeDateField(item.createdAt),
+        updatedAt: serializeDateField(item.updatedAt),
       };
 
       // Serialize nested options if present
@@ -28,7 +59,7 @@ function serializeCollection(collection: Record<string, unknown>) {
         serializedItem.options = (item.options as Record<string, unknown>[]).map((opt) => ({
           ...opt,
           feeEuros: Number(opt.feeEuros),
-          createdAt: (opt.createdAt as Date).toISOString(),
+          createdAt: serializeDateField(opt.createdAt),
         }));
       }
 

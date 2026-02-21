@@ -101,11 +101,10 @@ export function listingRoutes(prisma: PrismaClient): Hono<AppEnv> {
     }
 
     try {
-      // Check for conflicting active listings of the same type
+      // Check for ANY active listing (user can only have one active offer OR request at a time)
       const conflicting = await prisma.stampListing.findFirst({
         where: {
           userId: profile.id,
-          type: parsed.data.type,
           status: {
             in: ['active', 'pending_validation'],
           },
@@ -113,9 +112,11 @@ export function listingRoutes(prisma: PrismaClient): Hono<AppEnv> {
       });
 
       if (conflicting) {
+        const conflictType = conflicting.type === 'offer' ? 'oferta' : 'pedido';
+        const requestedType = parsed.data.type === 'offer' ? 'oferta' : 'pedido';
         return c.json(
           {
-            error: `You already have an active ${parsed.data.type} listing. Cancel it first.`,
+            error: `Já tens um(a) ${conflictType} ativo(a). Cancela primeiro para criar um(a) ${requestedType}.`,
             code: 'CONFLICTING_LISTING',
           },
           409,
@@ -126,6 +127,38 @@ export function listingRoutes(prisma: PrismaClient): Hono<AppEnv> {
 
       // Set expiry to 7 days from now
       const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+      // For requests, update weekly stamps requested and reset date if needed
+      if (parsed.data.type === 'request') {
+        const userProfile = await prisma.profile.findUniqueOrThrow({
+          where: { id: profile.id },
+        });
+
+        const now = new Date();
+        const resetAt = new Date(userProfile.weeklyResetAt);
+
+        // If weekly reset has passed, reset the counter and set new reset date
+        let newWeeklyRequested = userProfile.weeklyStampsRequested;
+        let newResetAt = userProfile.weeklyResetAt;
+
+        if (now > resetAt) {
+          // Reset has passed, start fresh
+          newWeeklyRequested = 0;
+          // Set new reset to 7 days from now
+          newResetAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+        }
+
+        // Add the new request quantity
+        newWeeklyRequested += parsed.data.quantity;
+
+        await prisma.profile.update({
+          where: { id: profile.id },
+          data: {
+            weeklyStampsRequested: newWeeklyRequested,
+            weeklyResetAt: newResetAt,
+          },
+        });
+      }
 
       const listing = await prisma.stampListing.create({
         data: {

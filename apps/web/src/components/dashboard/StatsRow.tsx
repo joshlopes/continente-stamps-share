@@ -1,4 +1,4 @@
-import { ArrowUpCircle, ArrowDownCircle, Star } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import type { Profile } from '@stamps-share/shared';
 
 interface StatsRowProps {
@@ -10,35 +10,33 @@ export function StatsRow({ profile }: StatsRowProps) {
     {
       label: 'Oferecidos',
       value: profile.totalOffered,
-      icon: ArrowUpCircle,
-      color: 'text-emerald-600',
-      bg: 'bg-emerald-50',
+      sub: 'selos no total',
+      icon: ArrowUpRight,
+      color: 'text-green-700',
+      bg: 'bg-green-50 border-green-100',
+      iconBg: 'bg-green-100 text-green-600',
     },
     {
       label: 'Pedidos',
       value: profile.totalRequested,
-      icon: ArrowDownCircle,
-      color: 'text-blue-600',
-      bg: 'bg-blue-50',
-    },
-    {
-      label: 'Pontos',
-      value: profile.points,
-      icon: Star,
-      color: 'text-amber-600',
-      bg: 'bg-amber-50',
+      sub: 'selos no total',
+      icon: ArrowDownRight,
+      color: 'text-sky-700',
+      bg: 'bg-sky-50 border-sky-100',
+      iconBg: 'bg-sky-100 text-sky-600',
     },
   ];
 
   return (
-    <div className="grid grid-cols-3 gap-2.5">
-      {stats.map(({ label, value, icon: Icon, color, bg }) => (
-        <div key={label} className="bg-white rounded-xl p-3 shadow-card text-center">
-          <div className={`w-8 h-8 ${bg} rounded-lg flex items-center justify-center mx-auto mb-1.5`}>
-            <Icon className={`w-4 h-4 ${color}`} />
+    <div className="grid grid-cols-2 gap-2.5">
+      {stats.map(({ label, value, sub, icon: Icon, color, bg, iconBg }) => (
+        <div key={label} className={`${bg} rounded-2xl p-4 border`}>
+          <div className={`w-8 h-8 rounded-xl flex items-center justify-center mb-3 ${iconBg}`}>
+            <Icon className="w-4 h-4" strokeWidth={2.5} />
           </div>
-          <p className="font-bold text-lg text-slate-900">{value}</p>
-          <p className="text-[10px] text-slate-400 font-medium">{label}</p>
+          <p className={`text-2xl font-black ${color} leading-none mb-1`}>{value}</p>
+          <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">{label}</p>
+          <p className="text-[11px] text-slate-400">{sub}</p>
         </div>
       ))}
     </div>
