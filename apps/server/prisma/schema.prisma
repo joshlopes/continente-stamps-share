@@ -44,6 +44,8 @@ model Profile {
   transactionsFrom      StampTransaction[]      @relation("TransactionsFrom")
   transactionsTo        StampTransaction[]      @relation("TransactionsTo")
   createdCollections    StampCollection[]       @relation("CreatedCollections")
+  auditLogsAsActor      AuditLog[]              @relation("AuditActor")
+  auditLogsAsTarget     AuditLog[]              @relation("AuditTarget")
 
   @@index([phone])
   @@index([points])
@@ -223,4 +225,48 @@ model AppSettings {
   updatedBy       String?  @map("updated_by")
 
   @@map("app_settings")
+}
+
+// ============================================================================
+// Audit Log
+// ============================================================================
+
+enum AuditAction {
+  // Listing actions
+  listing_created
+  listing_cancelled
+  listing_approved
+  listing_rejected
+  listing_fulfilled
+  listing_quantity_adjusted
+  // Profile actions
+  profile_created
+  profile_updated
+  admin_granted
+  admin_revoked
+}
+
+model AuditLog {
+  id            String      @id @default(uuid())
+  action        AuditAction
+  entityType    String      @map("entity_type")  // 'listing', 'profile', etc.
+  entityId      String      @map("entity_id")
+  actorId       String?     @map("actor_id")     // Who performed the action (null for system)
+  targetUserId  String?     @map("target_user_id") // The user affected by the action
+  oldValue      Json?       @map("old_value")    // Previous state (for updates)
+  newValue      Json?       @map("new_value")    // New state
+  metadata      Json?                            // Additional context
+  ipAddress     String?     @map("ip_address")
+  userAgent     String?     @map("user_agent")
+  createdAt     DateTime    @default(now()) @map("created_at")
+
+  actor         Profile?    @relation("AuditActor", fields: [actorId], references: [id])
+  targetUser    Profile?    @relation("AuditTarget", fields: [targetUserId], references: [id])
+
+  @@index([entityType, entityId])
+  @@index([actorId])
+  @@index([targetUserId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
 }

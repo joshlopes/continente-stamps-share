@@ -1,85 +1,78 @@
 import { useState } from 'react';
-import { Phone, ArrowRight, AlertCircle } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 
 interface PhoneAuthProps {
-  onSubmit: (phone: string) => Promise<void>;
-  loading: boolean;
+  onSubmit: (phone: string) => Promise<{ devCode?: string }>;
 }
 
-export function PhoneAuth({ onSubmit, loading }: PhoneAuthProps) {
+export function PhoneAuth({ onSubmit }: PhoneAuthProps) {
   const [phone, setPhone] = useState('');
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const formatPhone = (value: string) => {
-    const digits = value.replace(/\D/g, '');
-    if (digits.length <= 3) return digits;
-    if (digits.length <= 6) return `${digits.slice(0, 3)} ${digits.slice(3)}`;
-    return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6, 9)}`;
+  const formatDisplay = (value: string) => {
+    const d = value.replace(/\D/g, '').slice(0, 9);
+    if (d.length <= 3) return d;
+    if (d.length <= 6) return d.slice(0, 3) + ' ' + d.slice(3);
+    return d.slice(0, 3) + ' ' + d.slice(3, 6) + ' ' + d.slice(6);
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const raw = e.target.value.replace(/\D/g, '').slice(0, 9);
-    setPhone(formatPhone(raw));
+    setPhone(e.target.value.replace(/\D/g, '').slice(0, 9));
     setError('');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const digits = phone.replace(/\D/g, '');
-    if (digits.length !== 9) {
-      setError('Introduza um numero de telefone valido com 9 digitos');
-      return;
-    }
-    try {
-      await onSubmit(digits);
-    } catch (err: any) {
-      setError(err.message || 'Erro ao enviar codigo');
-    }
+    if (phone.length < 9) { setError('Introduz um número de telemóvel válido'); return; }
+    setLoading(true); setError('');
+    try { await onSubmit(phone); }
+    catch (err) { setError(err instanceof Error ? err.message : 'Erro ao enviar código'); }
+    finally { setLoading(false); }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
-      <div>
-        <label className="block text-sm font-medium text-slate-600 mb-2">
-          Numero de telemovel
-        </label>
-        <div className="relative">
-          <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5 text-slate-400">
-            <Phone className="w-4 h-4" />
-            <span className="text-sm font-medium text-slate-500">+351</span>
+    <div className="w-full">
+      <h2 className="text-[2rem] font-black text-slate-900 mb-2 tracking-tight leading-tight">Entrar</h2>
+      <p className="text-slate-500 text-[15px] leading-relaxed mb-8">
+        Introduz o teu número de telemóvel português.
+      </p>
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label className="block text-[11px] font-black text-slate-400 uppercase tracking-[0.1em] mb-2.5">
+            Telemóvel
+          </label>
+          <div className={`flex items-stretch bg-white rounded-2xl overflow-hidden shadow-card border-2 transition-all ${
+            error ? 'border-rose-400' : 'border-white focus-within:border-green-500'
+          }`}>
+            <div className="flex items-center gap-2 pl-4 pr-3.5 border-r border-slate-100 shrink-0 my-2">
+              <span className="text-lg leading-none">🇵🇹</span>
+              <span className="text-sm font-bold text-slate-400">+351</span>
+            </div>
+            <input
+              type="tel"
+              value={formatDisplay(phone)}
+              onChange={handleChange}
+              placeholder="9XX XXX XXX"
+              className="flex-1 px-4 py-4 bg-transparent text-slate-900 placeholder-slate-300 outline-none text-lg font-semibold tracking-wide"
+              autoComplete="tel"
+            />
           </div>
-          <input
-            type="tel"
-            value={phone}
-            onChange={handleChange}
-            placeholder="912 345 678"
-            className="w-full pl-[5.5rem] pr-4 py-3.5 bg-white border border-slate-200 rounded-xl text-base font-medium text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all"
-            autoFocus
-          />
+          {error && <p className="text-rose-500 text-xs mt-2 font-semibold">{error}</p>}
         </div>
-      </div>
 
-      {error && (
-        <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-100 rounded-xl">
-          <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
-          <p className="text-sm text-red-600">{error}</p>
-        </div>
-      )}
-
-      <button
-        type="submit"
-        disabled={loading || phone.replace(/\D/g, '').length !== 9}
-        className="w-full flex items-center justify-center gap-2 py-3.5 bg-green-600 hover:bg-green-700 disabled:bg-slate-200 disabled:text-slate-400 text-white font-semibold rounded-xl transition-all"
-      >
-        {loading ? (
-          <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-        ) : (
-          <>
-            Enviar codigo
-            <ArrowRight className="w-4 h-4" />
-          </>
-        )}
-      </button>
-    </form>
+        <button
+          type="submit"
+          disabled={loading || phone.length < 9}
+          className="w-full py-[15px] bg-green-600 hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-2xl flex items-center justify-center gap-2 text-[15px] transition-all active:scale-[0.98] shadow-lg shadow-green-200/70"
+        >
+          {loading
+            ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            : <><span>Continuar</span><ArrowRight className="w-4 h-4" /></>
+          }
+        </button>
+      </form>
+    </div>
   );
 }

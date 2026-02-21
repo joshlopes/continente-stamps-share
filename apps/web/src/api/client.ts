@@ -139,9 +139,10 @@ class ApiClient {
     return this.request<{ offers: import('@stamps-share/shared').StampListingWithProfile[] }>('/api/admin/pending-offers');
   }
 
-  async approveOffer(id: string) {
-    return this.request<{ offer: import('@stamps-share/shared').StampListingWithProfile }>(`/api/admin/offers/${id}/approve`, {
+  async approveOffer(id: string, quantity?: number) {
+    return this.request<{ offer: import('@stamps-share/shared').StampListingWithProfile; quantityAdjusted?: boolean; originalQuantity?: number }>(`/api/admin/offers/${id}/approve`, {
       method: 'PUT',
+      body: quantity !== undefined ? JSON.stringify({ quantity }) : undefined,
     });
   }
 
@@ -149,6 +150,16 @@ class ApiClient {
     return this.request<{ offer: import('@stamps-share/shared').StampListingWithProfile }>(`/api/admin/offers/${id}/reject`, {
       method: 'PUT',
       body: JSON.stringify({ reason }),
+    });
+  }
+
+  async getActiveRequests() {
+    return this.request<{ requests: (import('@stamps-share/shared').StampListingWithProfile & { user: { phone: string } })[] }>('/api/admin/active-requests');
+  }
+
+  async fulfillRequest(id: string) {
+    return this.request<{ request: import('@stamps-share/shared').StampListingWithProfile }>(`/api/admin/requests/${id}/fulfill`, {
+      method: 'PUT',
     });
   }
 
@@ -197,6 +208,10 @@ class ApiClient {
       method: 'POST',
       body: JSON.stringify(data),
     });
+  }
+
+  async deleteRedemptionOption(collectionId: string, itemId: string, optionId: string) {
+    return this.request<{ success: boolean }>(`/api/admin/collections/${collectionId}/items/${itemId}/options/${optionId}`, { method: 'DELETE' });
   }
 
   async getSettings() {

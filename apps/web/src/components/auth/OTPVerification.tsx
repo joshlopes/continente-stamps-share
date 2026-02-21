@@ -1,140 +1,138 @@
 import { useState, useRef, useEffect } from 'react';
-import { ArrowLeft, AlertCircle, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, Lock } from 'lucide-react';
 
 interface OTPVerificationProps {
   phone: string;
+  devCode?: string;
   onVerify: (code: string) => Promise<void>;
   onBack: () => void;
-  loading: boolean;
-  devCode?: string;
+  onResend?: () => Promise<void>;
 }
 
-export function OTPVerification({ phone, onVerify, onBack, loading, devCode }: OTPVerificationProps) {
-  const [code, setCode] = useState(['', '', '', '', '', '']);
+export function OTPVerification({ phone, devCode, onVerify, onBack, onResend }: OTPVerificationProps) {
+  const [digits, setDigits] = useState<string[]>(['', '', '', '', '', '']);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const inputs = useRef<(HTMLInputElement | null)[]>([]);
+  const [resendCooldown, setResendCooldown] = useState(30);
+  const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  useEffect(() => { inputRefs.current[0]?.focus(); }, []);
 
   useEffect(() => {
-    inputs.current[0]?.focus();
-  }, []);
+    if (resendCooldown <= 0) return;
+    const t = setTimeout(() => setResendCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [resendCooldown]);
 
-  const handleChange = (index: number, value: string) => {
+  const handleDigitChange = (index: number, value: string) => {
     if (!/^\d*$/.test(value)) return;
-
-    const newCode = [...code];
-
+    const newDigits = [...digits];
     if (value.length > 1) {
-      // Handle paste
-      const digits = value.replace(/\D/g, '').slice(0, 6);
-      for (let i = 0; i < 6; i++) {
-        newCode[i] = digits[i] || '';
-      }
-      setCode(newCode);
-      const nextEmpty = digits.length < 6 ? digits.length : 5;
-      inputs.current[nextEmpty]?.focus();
-
-      if (digits.length === 6) {
-        handleSubmit(newCode.join(''));
-      }
+      const pasted = value.replace(/\D/g, '').slice(0, 6);
+      const filled = [...newDigits];
+      pasted.split('').forEach((d, i) => { if (index + i < 6) filled[index + i] = d; });
+      setDigits(filled);
+      const nextEmpty = filled.findIndex((d) => d === '');
+      inputRefs.current[nextEmpty === -1 ? 5 : nextEmpty]?.focus();
+      const code = filled.join('');
+      if (code.length === 6 && !filled.includes('')) handleVerify(code);
       return;
     }
-
-    newCode[index] = value;
-    setCode(newCode);
+    newDigits[index] = value;
+    setDigits(newDigits);
     setError('');
-
-    if (value && index < 5) {
-      inputs.current[index + 1]?.focus();
-    }
-
-    if (newCode.every((d) => d !== '') && newCode.join('').length === 6) {
-      handleSubmit(newCode.join(''));
-    }
+    if (value && index < 5) inputRefs.current[index + 1]?.focus();
+    const code = newDigits.join('');
+    if (code.length === 6 && !newDigits.includes('')) handleVerify(code);
   };
 
   const handleKeyDown = (index: number, e: React.KeyboardEvent) => {
-    if (e.key === 'Backspace' && !code[index] && index > 0) {
-      inputs.current[index - 1]?.focus();
-    }
+    if (e.key === 'Backspace' && !digits[index] && index > 0) inputRefs.current[index - 1]?.focus();
   };
 
-  const handleSubmit = async (codeStr?: string) => {
-    const finalCode = codeStr || code.join('');
-    if (finalCode.length !== 6) {
-      setError('Introduza o codigo completo de 6 digitos');
-      return;
+  const handleVerify = async (code: string) => {
+    setLoading(true); setError('');
+    try { await onVerify(code); }
+    catch (err) {
+      setError(err instanceof Error ? err.message : 'Código inválido');
+      setDigits(['', '', '', '', '', '']);
+      setTimeout(() => inputRefs.current[0]?.focus(), 50);
     }
-    try {
-      await onVerify(finalCode);
-    } catch (err: any) {
-      setError(err.message || 'Codigo invalido');
-      setCode(['', '', '', '', '', '']);
-      inputs.current[0]?.focus();
-    }
+    finally { setLoading(false); }
   };
 
-  const formattedPhone = `+351 ${phone.slice(0, 3)} ${phone.slice(3, 6)} ${phone.slice(6)}`;
+  const handleResend = async () => {
+    if (resendCooldown > 0 || !onResend) return;
+    setResendCooldown(30); setDigits(['', '', '', '', '', '']); setError('');
+    try { await onResend(); }
+    catch { setError('Erro ao reenviar código'); }
+  };
+
+  const maskedPhone = phone.slice(0, -4).replace(/\d/g, '•') + phone.slice(-4);
 
   return (
-    <div className="space-y-5">
-      <button
-        onClick={onBack}
-        className="flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors"
-      >
-        <ArrowLeft className="w-4 h-4" />
-        Alterar numero
+    <div className="w-full">
+      <button onClick={onBack} className="flex items-center gap-2 text-slate-400 hover:text-slate-600 text-sm font-medium mb-8 transition-colors">
+        <ArrowLeft className="w-4 h-4" /> Voltar
       </button>
 
-      <div className="text-center space-y-1">
-        <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
-          <ShieldCheck className="w-6 h-6 text-green-600" />
-        </div>
-        <p className="text-sm text-slate-500">
-          Enviamos um codigo para
-        </p>
-        <p className="font-semibold text-slate-900">{formattedPhone}</p>
+      <div className="w-12 h-12 rounded-2xl bg-green-50 flex items-center justify-center mb-6">
+        <Lock className="w-5 h-5 text-green-600" />
       </div>
 
+      <h2 className="text-[2rem] font-black text-slate-900 mb-2 tracking-tight leading-tight">Verificar número</h2>
+      <p className="text-slate-500 text-[15px] leading-relaxed mb-7">
+        Enviámos um código para{' '}
+        <span className="font-semibold text-slate-700">+351 {maskedPhone}</span>
+      </p>
+
       {devCode && (
-        <div className="flex items-center justify-center gap-2 p-2.5 bg-amber-50 border border-amber-200 rounded-xl">
-          <span className="text-xs font-medium text-amber-700">DEV: {devCode}</span>
+        <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-4 mb-6">
+          <p className="text-[11px] font-black text-amber-500 uppercase tracking-widest mb-1">Modo Dev</p>
+          <p className="text-xl font-black text-amber-800 tracking-[0.3em]">{devCode}</p>
         </div>
       )}
 
-      <div className="flex justify-center gap-2.5">
-        {code.map((digit, i) => (
+      <div className="flex gap-2 mb-5 max-w-xs">
+        {digits.map((digit, i) => (
           <input
             key={i}
-            ref={(el) => { inputs.current[i] = el; }}
+            ref={(el) => { inputRefs.current[i] = el; }}
             type="text"
             inputMode="numeric"
             maxLength={6}
             value={digit}
-            onChange={(e) => handleChange(i, e.target.value)}
+            onChange={(e) => handleDigitChange(i, e.target.value)}
             onKeyDown={(e) => handleKeyDown(i, e)}
-            className="w-11 h-13 text-center text-lg font-bold bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all"
+            className={`w-12 h-12 text-center text-2xl font-black rounded-xl border-2 bg-white outline-none transition-all ${
+              loading ? 'opacity-40' :
+              digit ? 'border-green-500 text-green-700 bg-green-50' :
+              'border-slate-200 text-slate-900 focus:border-green-400 focus:bg-green-50/30'
+            }`}
+            disabled={loading}
           />
         ))}
       </div>
 
       {error && (
-        <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-100 rounded-xl">
-          <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
-          <p className="text-sm text-red-600">{error}</p>
+        <div className="bg-rose-50 border border-rose-200 rounded-xl px-3 py-2.5 mb-4">
+          <p className="text-rose-600 text-sm font-medium">{error}</p>
         </div>
       )}
 
-      <button
-        onClick={() => handleSubmit()}
-        disabled={loading || code.some((d) => !d)}
-        className="w-full flex items-center justify-center gap-2 py-3.5 bg-green-600 hover:bg-green-700 disabled:bg-slate-200 disabled:text-slate-400 text-white font-semibold rounded-xl transition-all"
-      >
-        {loading ? (
-          <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-        ) : (
-          'Verificar codigo'
-        )}
-      </button>
+      {loading && (
+        <div className="flex items-center gap-2.5 text-sm text-slate-500 mb-4">
+          <div className="w-4 h-4 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
+          <span>A verificar...</span>
+        </div>
+      )}
+
+      {onResend && (
+        <button onClick={handleResend} disabled={resendCooldown > 0}
+          className="text-sm font-medium disabled:opacity-40 text-slate-400 hover:text-green-600 transition-colors">
+          {resendCooldown > 0 ? `Reenviar em ${resendCooldown}s` : 'Não recebeste? Reenviar código'}
+        </button>
+      )}
     </div>
   );
 }
