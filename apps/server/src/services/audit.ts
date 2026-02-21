@@ -1,4 +1,4 @@
-import type { PrismaClient, AuditAction } from '../../generated/prisma/client.js';
+import type { PrismaClient, AuditAction, Prisma } from '../../generated/prisma/client.js';
 
 export interface AuditContext {
   actorId?: string;
@@ -31,9 +31,9 @@ export async function createAuditLog(
       entityId: entry.entityId,
       actorId: context.actorId ?? null,
       targetUserId: entry.targetUserId ?? null,
-      oldValue: entry.oldValue ?? null,
-      newValue: entry.newValue ?? null,
-      metadata: entry.metadata ?? null,
+      oldValue: entry.oldValue as Prisma.InputJsonValue | undefined,
+      newValue: entry.newValue as Prisma.InputJsonValue | undefined,
+      metadata: entry.metadata as Prisma.InputJsonValue | undefined,
       ipAddress: context.ipAddress ?? null,
       userAgent: context.userAgent ?? null,
     },
