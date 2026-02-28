@@ -1,4 +1,17 @@
-import type { PrismaClient, AuditAction, Prisma } from '../../generated/prisma/client.js';
+import type { PrismaClient, Prisma } from '../../generated/prisma/client.js';
+
+// AuditAction is validated at the application level (not a database enum)
+export type AuditAction =
+  | 'listing_created'
+  | 'listing_cancelled'
+  | 'listing_approved'
+  | 'listing_rejected'
+  | 'listing_fulfilled'
+  | 'listing_quantity_adjusted'
+  | 'profile_created'
+  | 'profile_updated'
+  | 'admin_granted'
+  | 'admin_revoked';
 
 export interface AuditContext {
   actorId?: string;

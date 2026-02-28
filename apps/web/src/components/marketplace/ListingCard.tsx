@@ -6,8 +6,6 @@ interface ListingCardProps {
   listing: StampListingWithProfile;
   currentUserId?: string;
   onCancel?: (id: string) => void;
-  onFulfill?: (id: string) => void;
-  onOffer?: (listing: StampListingWithProfile) => void;
   loading?: boolean;
 }
 
@@ -20,7 +18,7 @@ function timeAgo(dateStr: string): string {
   return `${Math.floor(hours / 24)}d`;
 }
 
-export function ListingCard({ listing, currentUserId, onCancel, onFulfill, onOffer, loading }: ListingCardProps) {
+export function ListingCard({ listing, currentUserId, onCancel, loading }: ListingCardProps) {
   const isOwner = currentUserId === listing.userId;
   const tierInfo = getTierInfo(listing.user?.tier ?? 1);
   const isOffer = listing.type === 'offer';
@@ -112,23 +110,7 @@ export function ListingCard({ listing, currentUserId, onCancel, onFulfill, onOff
               </button>
             )}
 
-            {!isOwner && onFulfill && listing.status === 'active' && (
-              <button onClick={() => onFulfill(listing.id)} disabled={loading}
-                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold text-white transition-colors disabled:opacity-50 ${
-                  isOffer ? 'bg-green-600 hover:bg-green-700' : 'bg-sky-600 hover:bg-sky-700'
-                }`}>
-                <Check className="w-3.5 h-3.5" />
-                {isOffer ? 'Aceitar' : 'Dar selos'}
-              </button>
-            )}
 
-            {!isOwner && onOffer && listing.status === 'active' && !isOffer && (
-              <button onClick={() => onOffer(listing)} disabled={loading}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold text-white bg-green-600 hover:bg-green-700 transition-colors disabled:opacity-50">
-                <Check className="w-3.5 h-3.5" />
-                Oferecer selos
-              </button>
-            )}
           </div>
         </div>
       </div>

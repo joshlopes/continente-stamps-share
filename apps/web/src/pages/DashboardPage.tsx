@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { ArrowUpRight, ArrowDownRight, Zap, Clock, Copy, Check, Hash, Send } from 'lucide-react';
-import type { Profile, StampListingWithProfile } from '@stamps-share/shared';
+import type { Profile } from '@stamps-share/shared';
 import { useMarketplace } from '../hooks/useMarketplace';
 import { LevelCard } from '../components/dashboard/LevelCard';
 import { StatsRow } from '../components/dashboard/StatsRow';
@@ -18,8 +18,7 @@ interface DashboardPageProps {
 export function DashboardPage({ profile, onProfileUpdate }: DashboardPageProps) {
   const [showOfferFlow, setShowOfferFlow] = useState(false);
   const [showRequestModal, setShowRequestModal] = useState(false);
-  const [offerTarget, setOfferTarget] = useState<StampListingWithProfile | null>(null);
-  const { listings, loading, fetchListings, createListing, cancelListing, fulfillListing } = useMarketplace();
+  const { listings, loading, fetchListings, createListing, cancelListing } = useMarketplace();
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [actionError, setActionError] = useState('');
   const [adminPhone, setAdminPhone] = useState('');
@@ -48,13 +47,6 @@ export function DashboardPage({ profile, onProfileUpdate }: DashboardPageProps) 
   const handleCancel = async (id: string) => {
     setActionLoading(id); setActionError('');
     try { await cancelListing(id); await fetchListings(); await onProfileUpdate(); }
-    catch (err) { setActionError(err instanceof Error ? err.message : 'Erro'); }
-    finally { setActionLoading(null); }
-  };
-
-  const handleFulfill = async (id: string) => {
-    setActionLoading(id); setActionError('');
-    try { await fulfillListing(id); await fetchListings(); await onProfileUpdate(); }
     catch (err) { setActionError(err instanceof Error ? err.message : 'Erro'); }
     finally { setActionLoading(null); }
   };
@@ -341,7 +333,7 @@ export function DashboardPage({ profile, onProfileUpdate }: DashboardPageProps) 
           <div className="space-y-2.5">
             {listings.slice(0, 8).map((listing) => (
               <ListingCard key={listing.id} listing={listing} currentUserId={profile.id}
-                onCancel={handleCancel} onFulfill={handleFulfill} onOffer={(l) => setOfferTarget(l)} loading={actionLoading === listing.id} />
+                onCancel={handleCancel} loading={actionLoading === listing.id} />
             ))}
           </div>
         )}
@@ -380,14 +372,6 @@ export function DashboardPage({ profile, onProfileUpdate }: DashboardPageProps) 
         <CreateListingModal
           profile={profile}
           onClose={() => { setShowRequestModal(false); fetchListings(); onProfileUpdate(); }}
-          onCreate={handleCreate}
-        />
-      )}
-
-      {offerTarget && (
-        <OfferFlowModal
-          listing={offerTarget}
-          onClose={() => { setOfferTarget(null); fetchListings(); onProfileUpdate(); }}
           onCreate={handleCreate}
         />
       )}
