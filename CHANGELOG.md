@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.4.1](https://github.com/joshlopes/continente-stamps-share/compare/v1.4.0...v1.4.1) (2026-02-28)
+
+
+### Bug Fixes
+
+* add PGDATA env to postgres to ensure data persists on volume ([61c68fc](https://github.com/joshlopes/continente-stamps-share/commit/61c68fc0199ca66bfec73596628e50b966f25d82))
+* remove database enums, fix offer 500 error, rename to TrocaSelos ([#18](https://github.com/joshlopes/continente-stamps-share/issues/18)) ([24048fa](https://github.com/joshlopes/continente-stamps-share/commit/24048fa8b19e91d2712ff7d84ce7a6af310bbe52))
+
 ## [1.4.0](https://github.com/joshlopes/continente-stamps-share/compare/v1.3.0...v1.4.0) (2026-02-28)
 
 
