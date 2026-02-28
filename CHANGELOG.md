@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.0](https://github.com/joshlopes/continente-stamps-share/compare/v1.3.0...v1.4.0) (2026-02-28)
+
+
+### Features
+
+* UX improvements and two-phase offer flow ([#15](https://github.com/joshlopes/continente-stamps-share/issues/15)) ([24c58fa](https://github.com/joshlopes/continente-stamps-share/commit/24c58fa324f3ba3a019c33fa0ece13026cf498e6))
+
 ## [1.3.0](https://github.com/Ez-Web-Lda/continente-stamps-share/compare/v1.2.3...v1.3.0) (2026-02-21)
 
 
