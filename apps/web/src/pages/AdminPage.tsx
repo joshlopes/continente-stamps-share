@@ -69,6 +69,7 @@ function TabButton({ active, onClick, icon: Icon, label }: { active: boolean; on
 // ============================================================================
 function PendingOffersTab() {
   const [offers, setOffers] = useState<StampListingWithProfile[]>([]);
+  const [completedOffers, setCompletedOffers] = useState<StampListingWithProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [rejectId, setRejectId] = useState<string | null>(null);
@@ -77,12 +78,17 @@ function PendingOffersTab() {
   const [quantityAdjustments, setQuantityAdjustments] = useState<Record<string, number>>({});
   // Track which offer is being edited
   const [editingQuantity, setEditingQuantity] = useState<string | null>(null);
+  const [showCompleted, setShowCompleted] = useState(false);
 
   const loadOffers = async () => {
     setLoading(true);
     try {
-      const { offers: data } = await api.getPendingOffers();
-      setOffers(data);
+      const [pendingRes, completedRes] = await Promise.all([
+        api.getPendingOffers(),
+        api.getCompletedOffers(),
+      ]);
+      setOffers(pendingRes.offers);
+      setCompletedOffers(completedRes.offers);
       // Reset adjustments when offers reload
       setQuantityAdjustments({});
       setEditingQuantity(null);
@@ -113,6 +119,15 @@ function PendingOffersTab() {
       await api.rejectOffer(rejectId, rejectReason || undefined);
       setRejectId(null);
       setRejectReason('');
+      await loadOffers();
+    } catch { /* ignore */ }
+    setActionLoading(null);
+  };
+
+  const handleRevert = async (id: string) => {
+    setActionLoading(id);
+    try {
+      await api.revertOffer(id);
       await loadOffers();
     } catch { /* ignore */ }
     setActionLoading(null);
@@ -301,6 +316,65 @@ function PendingOffersTab() {
           </div>
         </div>
       )}
+
+      {/* Completed offers section */}
+      {completedOffers.length > 0 && (
+        <>
+          <button
+            onClick={() => setShowCompleted(!showCompleted)}
+            className="w-full flex items-center justify-between py-3 mt-4 border-t border-slate-200"
+          >
+            <span className="text-sm font-bold text-slate-500">Concluídas ({completedOffers.length})</span>
+            <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${showCompleted ? 'rotate-180' : ''}`} />
+          </button>
+
+          {showCompleted && (
+            <div className="space-y-2 opacity-60">
+              {completedOffers.map((offer) => {
+                const tierStyle = getTierStyle(offer.user?.tier ?? 1);
+                const isLoading = actionLoading === offer.id;
+                const isApproved = offer.status === 'fulfilled';
+
+                return (
+                  <div key={offer.id} className="bg-white rounded-xl p-4 shadow-sm border border-slate-100 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <div className={`w-9 h-9 rounded-lg bg-gradient-to-br ${tierStyle.gradient} flex items-center justify-center`}>
+                          <span className="text-sm">{tierStyle.icon}</span>
+                        </div>
+                        <div>
+                          <p className="font-semibold text-sm text-slate-900">{offer.user?.displayName || 'Anónimo'}</p>
+                          <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${tierStyle.badge}`}>
+                            Nv.{offer.user?.level ?? 1}
+                          </span>
+                        </div>
+                      </div>
+                      <span className={`text-xs font-bold px-2 py-1 rounded-lg ${isApproved ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                        {isApproved ? 'Aprovada' : 'Rejeitada'}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <span className="text-lg font-black text-slate-800">{offer.quantity} selos</span>
+                      <button
+                        onClick={() => handleRevert(offer.id)}
+                        disabled={isLoading}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors disabled:opacity-50"
+                      >
+                        {isLoading ? (
+                          <div className="w-3 h-3 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <>Reverter</>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }
@@ -314,15 +388,21 @@ interface RequestWithPhone extends StampListingWithProfile {
 
 function ActiveRequestsTab() {
   const [requests, setRequests] = useState<RequestWithPhone[]>([]);
+  const [completedRequests, setCompletedRequests] = useState<RequestWithPhone[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [copiedPhone, setCopiedPhone] = useState<string | null>(null);
+  const [showCompleted, setShowCompleted] = useState(false);
 
   const loadRequests = async () => {
     setLoading(true);
     try {
-      const { requests: data } = await api.getActiveRequests();
-      setRequests(data as RequestWithPhone[]);
+      const [activeRes, completedRes] = await Promise.all([
+        api.getActiveRequests(),
+        api.getCompletedRequests(),
+      ]);
+      setRequests(activeRes.requests as RequestWithPhone[]);
+      setCompletedRequests(completedRes.requests as RequestWithPhone[]);
     } catch { /* ignore */ }
     setLoading(false);
   };
@@ -333,6 +413,15 @@ function ActiveRequestsTab() {
     setActionLoading(id);
     try {
       await api.fulfillRequest(id);
+      await loadRequests();
+    } catch { /* ignore */ }
+    setActionLoading(null);
+  };
+
+  const handleRevert = async (id: string) => {
+    setActionLoading(id);
+    try {
+      await api.revertRequest(id);
       await loadRequests();
     } catch { /* ignore */ }
     setActionLoading(null);
@@ -453,6 +542,64 @@ function ActiveRequestsTab() {
           </div>
         );
       })}
+
+      {/* Completed requests section */}
+      {completedRequests.length > 0 && (
+        <>
+          <button
+            onClick={() => setShowCompleted(!showCompleted)}
+            className="w-full flex items-center justify-between py-3 mt-4 border-t border-slate-200"
+          >
+            <span className="text-sm font-bold text-slate-500">Enviados ({completedRequests.length})</span>
+            <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${showCompleted ? 'rotate-180' : ''}`} />
+          </button>
+
+          {showCompleted && (
+            <div className="space-y-2 opacity-60">
+              {completedRequests.map((request) => {
+                const tierStyle = getTierStyle(request.user?.tier ?? 1);
+                const isLoading = actionLoading === request.id;
+
+                return (
+                  <div key={request.id} className="bg-white rounded-xl p-4 shadow-sm border border-slate-100 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <div className={`w-9 h-9 rounded-lg bg-gradient-to-br ${tierStyle.gradient} flex items-center justify-center`}>
+                          <span className="text-sm">{tierStyle.icon}</span>
+                        </div>
+                        <div>
+                          <p className="font-semibold text-sm text-slate-900">{request.user?.displayName || 'Anónimo'}</p>
+                          <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${tierStyle.badge}`}>
+                            Nv.{request.user?.level ?? 1}
+                          </span>
+                        </div>
+                      </div>
+                      <span className="text-xs font-bold px-2 py-1 rounded-lg bg-green-100 text-green-700">
+                        Enviado
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <span className="text-lg font-black text-slate-800">{request.quantity} selos</span>
+                      <button
+                        onClick={() => handleRevert(request.id)}
+                        disabled={isLoading}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors disabled:opacity-50"
+                      >
+                        {isLoading ? (
+                          <div className="w-3 h-3 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <>Reverter</>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }

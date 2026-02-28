@@ -1,6 +1,6 @@
 import type { PrismaClient } from '../../generated/prisma/client.js';
 
-const SESSION_DURATION_HOURS = 24;
+const SESSION_DURATION_HOURS = 24 * 30; // 30 days for persistent sessions
 
 /**
  * Generate a random token (UUID v4).

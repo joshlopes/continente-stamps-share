@@ -7,6 +7,7 @@ import { listingRoutes } from './listings.js';
 import { collectionRoutes } from './collections.js';
 import { leaderboardRoutes } from './leaderboard.js';
 import { adminRoutes } from './admin.js';
+import { settingsRoutes } from './settings.js';
 
 // App version from environment variable (set at build time) or fallback
 const APP_VERSION = process.env.APP_VERSION || '1.0.0';
@@ -38,6 +39,7 @@ export function createApp(prisma: PrismaClient): Hono {
   app.route('/api/collections', collectionRoutes(prisma));
   app.route('/api/leaderboard', leaderboardRoutes(prisma));
   app.route('/api/admin', adminRoutes(prisma));
+  app.route('/api/settings', settingsRoutes(prisma));
 
   // 404 handler
   app.notFound((c) => {

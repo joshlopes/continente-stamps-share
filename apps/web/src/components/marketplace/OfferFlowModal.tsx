@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
-import { X, ArrowUpRight, Stamp, CheckCircle2, Clock, Copy, Check } from 'lucide-react';
+import { X, ArrowUpRight, Stamp, CheckCircle2, Clock, Copy, Check, Send } from 'lucide-react';
 import type { StampListingWithProfile } from '@stamps-share/shared';
 import { api } from '../../api/client';
 
-type Step = 'configure' | 'submitted';
+type Step = 'configure' | 'send_instructions' | 'submitted';
 
 interface OfferFlowModalProps {
   listing?: StampListingWithProfile;
@@ -18,18 +18,20 @@ export function OfferFlowModal({ listing, onClose, onCreate }: OfferFlowModalPro
   const [error, setError] = useState('');
   const [adminPhone, setAdminPhone] = useState('');
   const [copied, setCopied] = useState(false);
+  const [createdListingId, setCreatedListingId] = useState<string | null>(null);
 
   useEffect(() => {
     const loadData = async () => {
       try {
-        const { settings } = await api.getSettings();
+        const { settings } = await api.getPublicSettings();
         if (settings.adminDevicePhone) setAdminPhone(settings.adminDevicePhone);
       } catch { /* ignore */ }
     };
     loadData();
   }, []);
 
-  const handleSubmit = async () => {
+  // Step 1: Create the offer (status will be pending_send)
+  const handleCreateOffer = async () => {
     setLoading(true);
     setError('');
     try {
@@ -37,9 +39,33 @@ export function OfferFlowModal({ listing, onClose, onCreate }: OfferFlowModalPro
         type: 'offer',
         quantity: quantity || 1,
       });
+      // Get the created listing ID from the latest listings
+      const { listings } = await api.getListings({ userId: undefined });
+      const myOffer = listings.find((l: any) => l.type === 'offer' && l.status === 'pending_send');
+      if (myOffer) {
+        setCreatedListingId(myOffer.id);
+      }
+      setStep('send_instructions');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao criar oferta');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Step 2: User confirms they've sent the stamps
+  const handleConfirmSent = async () => {
+    if (!createdListingId) {
+      setError('ID da oferta não encontrado');
+      return;
+    }
+    setLoading(true);
+    setError('');
+    try {
+      await api.confirmSent(createdListingId);
       setStep('submitted');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao submeter oferta');
+      setError(err instanceof Error ? err.message : 'Erro ao confirmar envio');
     } finally {
       setLoading(false);
     }
@@ -63,39 +89,24 @@ export function OfferFlowModal({ listing, onClose, onCreate }: OfferFlowModalPro
             <div className="w-7 h-7 rounded-xl bg-green-100 flex items-center justify-center">
               <ArrowUpRight className="w-3.5 h-3.5 text-green-600" />
             </div>
-            <h2 className="text-sm font-black text-slate-900">Oferecer Selos</h2>
+            <h2 className="text-sm font-black text-slate-900">
+              {step === 'configure' ? 'Oferecer Selos' : step === 'send_instructions' ? 'Enviar Selos' : 'Oferta Submetida'}
+            </h2>
           </div>
-          {step !== 'submitted' && (
+          {step === 'configure' && (
             <button onClick={onClose} className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors">
               <X className="w-4 h-4 text-slate-500" />
             </button>
           )}
         </div>
 
+        {/* Step 1: Configure quantity */}
         {step === 'configure' && (
           <div className="p-5 space-y-4">
-            {/* Admin phone number */}
-            <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-4">
-              <p className="text-[11px] font-black text-amber-500 uppercase tracking-widest mb-2">Envia os selos para</p>
-              {adminPhone ? (
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-xl font-black text-slate-900 tracking-widest">{adminPhone}</p>
-                  <button onClick={handleCopyPhone}
-                    className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-colors ${
-                      copied ? 'bg-green-100 text-green-700' : 'bg-amber-200 text-amber-700 hover:bg-amber-300'
-                    }`}>
-                    {copied ? <><Check className="w-3.5 h-3.5" /> Copiado</> : <><Copy className="w-3.5 h-3.5" /> Copiar</>}
-                  </button>
-                </div>
-              ) : (
-                <p className="text-slate-400 text-sm font-medium italic">Número não configurado</p>
-              )}
-            </div>
-
             {/* Quantity selector */}
             <div>
               <label className="block text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2">
-                Quantidade de selos (obrigatório)
+                Quantidade de selos
               </label>
               <div className="flex items-center gap-3">
                 <button type="button" onClick={() => setQuantity((q) => Math.max(1, q - 1))}
@@ -107,15 +118,15 @@ export function OfferFlowModal({ listing, onClose, onCreate }: OfferFlowModalPro
                   className="w-12 h-12 rounded-2xl bg-slate-100 hover:bg-slate-200 text-xl font-black text-slate-600 flex items-center justify-center transition-colors">+</button>
               </div>
               <p className="text-center text-xs text-slate-400 font-medium mt-1">
-                Ganhas <span className="text-green-600 font-black">+{quantity * 2} pontos</span>
+                Ganhas <span className="text-green-600 font-black">+{quantity * 2} pontos</span> após aprovação
               </p>
             </div>
 
-            {/* Warning */}
+            {/* Info */}
             <div className="flex items-start gap-3 bg-sky-50 border border-sky-100 rounded-2xl p-3">
               <Clock className="w-4 h-4 text-sky-500 shrink-0 mt-0.5" />
               <p className="text-xs font-medium text-sky-700 leading-relaxed">
-                A oferta fica <span className="font-black">pendente de validação</span>. Só podes ter uma oferta OU um pedido ativo de cada vez.
+                Só podes ter uma oferta OU um pedido ativo de cada vez.
               </p>
             </div>
 
@@ -125,16 +136,84 @@ export function OfferFlowModal({ listing, onClose, onCreate }: OfferFlowModalPro
               </div>
             )}
 
-            <button onClick={handleSubmit} disabled={loading}
+            <button onClick={handleCreateOffer} disabled={loading}
               className="w-full h-14 rounded-2xl font-bold text-white bg-green-600 hover:bg-green-700 transition-all shadow-lg shadow-green-200/50 disabled:opacity-50 flex items-center justify-center gap-2">
               {loading
                 ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                : 'Já enviei os selos'
+                : 'Continuar'
               }
             </button>
           </div>
         )}
 
+        {/* Step 2: Send instructions */}
+        {step === 'send_instructions' && (
+          <div className="p-5 space-y-4">
+            <div className="text-center py-2">
+              <p className="text-sm text-slate-600 font-medium">
+                Oferta de <span className="font-black text-green-600">{quantity} selos</span> criada!
+              </p>
+            </div>
+
+            {/* Admin account info */}
+            <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-4 space-y-3">
+              <p className="text-[11px] font-black text-amber-500 uppercase tracking-widest">Envia os selos para esta conta admin</p>
+              {adminPhone ? (
+                <>
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-xl font-black text-slate-900 tracking-widest">{adminPhone}</p>
+                    <button onClick={handleCopyPhone}
+                      className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-colors ${
+                        copied ? 'bg-green-100 text-green-700' : 'bg-amber-200 text-amber-700 hover:bg-amber-300'
+                      }`}>
+                      {copied ? <><Check className="w-3.5 h-3.5" /> Copiado</> : <><Copy className="w-3.5 h-3.5" /> Copiar</>}
+                    </button>
+                  </div>
+                  <p className="text-xs text-amber-700 leading-relaxed">
+                    O admin irá validar o teu pedido assim que receber os selos.
+                  </p>
+                </>
+              ) : (
+                <p className="text-slate-400 text-sm font-medium italic">Conta admin não configurada</p>
+              )}
+            </div>
+
+            {/* Instructions */}
+            <div className="bg-slate-50 rounded-2xl p-4 space-y-2">
+              <p className="text-xs font-bold text-slate-700">Instruções:</p>
+              <ol className="text-xs text-slate-600 space-y-1.5 list-decimal list-inside">
+                <li>Copia o número/cartão acima</li>
+                <li>Vai à app Continente e transfere os selos</li>
+                <li>Volta aqui e clica "Já enviei os selos"</li>
+              </ol>
+            </div>
+
+            {error && (
+              <div className="bg-rose-50 border border-rose-200 rounded-2xl p-3.5">
+                <p className="text-sm font-medium text-rose-700">{error}</p>
+              </div>
+            )}
+
+            <button onClick={handleConfirmSent} disabled={loading}
+              className="w-full h-14 rounded-2xl font-bold text-white bg-green-600 hover:bg-green-700 transition-all shadow-lg shadow-green-200/50 disabled:opacity-50 flex items-center justify-center gap-2">
+              {loading ? (
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <>
+                  <Send className="w-4 h-4" />
+                  Já enviei os selos
+                </>
+              )}
+            </button>
+
+            <button onClick={onClose}
+              className="w-full py-3 text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors">
+              Enviar mais tarde
+            </button>
+          </div>
+        )}
+
+        {/* Step 3: Submitted confirmation */}
         {step === 'submitted' && (
           <div className="p-5 space-y-5">
             <div className="text-center py-4">

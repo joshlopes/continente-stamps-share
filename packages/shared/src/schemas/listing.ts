@@ -5,6 +5,7 @@ export const ListingTypeSchema = z.enum(['offer', 'request']);
 export type ListingType = z.infer<typeof ListingTypeSchema>;
 
 export const ListingStatusSchema = z.enum([
+  'pending_send',
   'pending_validation',
   'active',
   'fulfilled',

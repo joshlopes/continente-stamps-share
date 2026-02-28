@@ -452,6 +452,206 @@ export function adminRoutes(prisma: PrismaClient): Hono<AppEnv> {
     }
   });
 
+  /**
+   * GET /completed-offers
+   * Get offers with status 'fulfilled' or 'rejected'.
+   */
+  app.get('/completed-offers', async (c) => {
+    try {
+      const offers = await prisma.stampListing.findMany({
+        where: {
+          type: 'offer',
+          status: { in: ['fulfilled', 'rejected'] },
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              phone: true,
+              displayName: true,
+              level: true,
+              tier: true,
+              points: true,
+            },
+          },
+        },
+        orderBy: { validatedAt: 'desc' },
+        take: 50, // Limit to last 50
+      });
+
+      return c.json({
+        offers: offers.map((o) => serializeListingWithPhone(o as unknown as Record<string, unknown>)),
+      });
+    } catch (error) {
+      console.error('Error fetching completed offers:', error);
+      return c.json({ error: 'Failed to fetch completed offers' }, 500);
+    }
+  });
+
+  /**
+   * PUT /offers/:id/revert
+   * Revert a completed offer back to pending_validation status.
+   */
+  app.put('/offers/:id/revert', async (c) => {
+    const profile = c.get('profile') as { id: string };
+    const offerId = c.req.param('id');
+
+    try {
+      const offer = await prisma.stampListing.findUnique({
+        where: { id: offerId },
+      });
+
+      if (!offer) {
+        return c.json({ error: 'Offer not found' }, 404);
+      }
+
+      if (offer.status !== 'fulfilled' && offer.status !== 'rejected') {
+        return c.json({ error: 'Offer is not completed' }, 400);
+      }
+
+      // If offer was fulfilled, we need to reverse the balance changes
+      if (offer.status === 'fulfilled') {
+        // Reverse the points and balance awarded
+        await prisma.profile.update({
+          where: { id: offer.userId },
+          data: {
+            stampBalance: { decrement: offer.quantity },
+            totalOffered: { decrement: offer.quantity },
+            points: { decrement: offer.quantity * 2 },
+          },
+        });
+      }
+
+      // Revert to pending_validation
+      const updated = await prisma.stampListing.update({
+        where: { id: offerId },
+        data: {
+          status: 'pending_validation',
+          validatedBy: null,
+          validatedAt: null,
+          rejectionReason: null,
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              phone: true,
+              displayName: true,
+              level: true,
+              tier: true,
+              points: true,
+            },
+          },
+        },
+      });
+
+      return c.json({
+        offer: serializeListingWithPhone(updated as unknown as Record<string, unknown>),
+      });
+    } catch (error) {
+      console.error('Error reverting offer:', error);
+      return c.json({ error: 'Failed to revert offer' }, 500);
+    }
+  });
+
+  /**
+   * GET /completed-requests
+   * Get requests with status 'fulfilled'.
+   */
+  app.get('/completed-requests', async (c) => {
+    try {
+      const requests = await prisma.stampListing.findMany({
+        where: {
+          type: 'request',
+          status: 'fulfilled',
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              displayName: true,
+              phone: true,
+              level: true,
+              tier: true,
+              points: true,
+            },
+          },
+        },
+        orderBy: { fulfilledAt: 'desc' },
+        take: 50, // Limit to last 50
+      });
+
+      return c.json({
+        requests: requests.map((r) => serializeListingWithPhone(r as unknown as Record<string, unknown>)),
+      });
+    } catch (error) {
+      console.error('Error fetching completed requests:', error);
+      return c.json({ error: 'Failed to fetch completed requests' }, 500);
+    }
+  });
+
+  /**
+   * PUT /requests/:id/revert
+   * Revert a fulfilled request back to active status.
+   */
+  app.put('/requests/:id/revert', async (c) => {
+    const profile = c.get('profile') as { id: string };
+    const requestId = c.req.param('id');
+
+    try {
+      const request = await prisma.stampListing.findUnique({
+        where: { id: requestId },
+      });
+
+      if (!request) {
+        return c.json({ error: 'Request not found' }, 404);
+      }
+
+      if (request.status !== 'fulfilled') {
+        return c.json({ error: 'Request is not fulfilled' }, 400);
+      }
+
+      // Reverse the weekly stamps received
+      await prisma.profile.update({
+        where: { id: request.userId },
+        data: {
+          weeklyStampsRequested: { decrement: request.quantity },
+          totalRequested: { decrement: request.quantity },
+          points: { decrement: Math.floor(request.quantity * 0.5) },
+        },
+      });
+
+      // Revert to active
+      const updated = await prisma.stampListing.update({
+        where: { id: requestId },
+        data: {
+          status: 'active',
+          fulfilledBy: null,
+          fulfilledAt: null,
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              displayName: true,
+              phone: true,
+              level: true,
+              tier: true,
+              points: true,
+            },
+          },
+        },
+      });
+
+      return c.json({
+        request: serializeListingWithPhone(updated as unknown as Record<string, unknown>),
+      });
+    } catch (error) {
+      console.error('Error reverting request:', error);
+      return c.json({ error: 'Failed to revert request' }, 500);
+    }
+  });
+
   // ============================================================================
   // Collection Management
   // ============================================================================
