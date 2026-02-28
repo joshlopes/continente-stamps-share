@@ -95,6 +95,7 @@ enum ListingType {
 }
 
 enum ListingStatus {
+  pending_send       // Offer created, waiting for user to confirm they sent stamps
   pending_validation
   active
   fulfilled

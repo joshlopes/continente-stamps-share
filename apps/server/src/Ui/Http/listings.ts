@@ -106,7 +106,7 @@ export function listingRoutes(prisma: PrismaClient): Hono<AppEnv> {
         where: {
           userId: profile.id,
           status: {
-            in: ['active', 'pending_validation'],
+            in: ['active', 'pending_validation', 'pending_send'],
           },
         },
       });
@@ -123,7 +123,9 @@ export function listingRoutes(prisma: PrismaClient): Hono<AppEnv> {
         );
       }
 
-      const status = parsed.data.type === 'offer' ? 'pending_validation' : 'active';
+      // Offers start as pending_send (user needs to confirm they've sent stamps)
+      // Requests start as active (immediately visible)
+      const status = parsed.data.type === 'offer' ? 'pending_send' : 'active';
 
       // Set expiry to 7 days from now
       const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
@@ -213,7 +215,7 @@ export function listingRoutes(prisma: PrismaClient): Hono<AppEnv> {
         return c.json({ error: 'Not your listing', code: 'FORBIDDEN' }, 403);
       }
 
-      if (listing.status !== 'active' && listing.status !== 'pending_validation') {
+      if (listing.status !== 'active' && listing.status !== 'pending_validation' && listing.status !== 'pending_send') {
         return c.json({ error: 'Listing cannot be cancelled in its current status' }, 400);
       }
 
@@ -244,6 +246,56 @@ export function listingRoutes(prisma: PrismaClient): Hono<AppEnv> {
     } catch (error) {
       console.error('Error cancelling listing:', error);
       return c.json({ error: 'Failed to cancel listing' }, 500);
+    }
+  });
+
+  /**
+   * PUT /:id/confirm-sent
+   * User confirms they've sent the stamps. Transitions from pending_send to pending_validation.
+   */
+  app.put('/:id/confirm-sent', authMiddleware(prisma), async (c) => {
+    const profile = c.get('profile') as { id: string };
+    const listingId = c.req.param('id');
+
+    try {
+      const listing = await prisma.stampListing.findUnique({
+        where: { id: listingId },
+      });
+
+      if (!listing) {
+        return c.json({ error: 'Listing not found' }, 404);
+      }
+
+      if (listing.userId !== profile.id) {
+        return c.json({ error: 'Not your listing', code: 'FORBIDDEN' }, 403);
+      }
+
+      if (listing.status !== 'pending_send') {
+        return c.json({ error: 'Listing is not in pending_send status' }, 400);
+      }
+
+      const updated = await prisma.stampListing.update({
+        where: { id: listingId },
+        data: { status: 'pending_validation' },
+        include: {
+          user: {
+            select: {
+              id: true,
+              displayName: true,
+              level: true,
+              tier: true,
+              points: true,
+            },
+          },
+        },
+      });
+
+      return c.json({
+        listing: serializeListing(updated as unknown as Record<string, unknown>),
+      });
+    } catch (error) {
+      console.error('Error confirming sent:', error);
+      return c.json({ error: 'Failed to confirm sent' }, 500);
     }
   });
 

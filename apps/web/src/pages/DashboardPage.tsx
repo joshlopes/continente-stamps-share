@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowUpRight, ArrowDownRight, Zap, Clock, Copy, Check, Hash } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Zap, Clock, Copy, Check, Hash, Send } from 'lucide-react';
 import type { Profile, StampListingWithProfile } from '@stamps-share/shared';
 import { useMarketplace } from '../hooks/useMarketplace';
 import { LevelCard } from '../components/dashboard/LevelCard';
@@ -32,7 +32,7 @@ export function DashboardPage({ profile, onProfileUpdate }: DashboardPageProps) 
   useEffect(() => {
     const loadSettings = async () => {
       try {
-        const { settings } = await api.getSettings();
+        const { settings } = await api.getPublicSettings();
         if (settings.adminDevicePhone) setAdminPhone(settings.adminDevicePhone);
       } catch { /* ignore */ }
     };
@@ -59,6 +59,13 @@ export function DashboardPage({ profile, onProfileUpdate }: DashboardPageProps) 
     finally { setActionLoading(null); }
   };
 
+  const handleConfirmSent = async (id: string) => {
+    setActionLoading(id); setActionError('');
+    try { await api.confirmSent(id); await fetchListings(); await onProfileUpdate(); }
+    catch (err) { setActionError(err instanceof Error ? err.message : 'Erro'); }
+    finally { setActionLoading(null); }
+  };
+
   const handleCopyPhone = () => {
     if (adminPhone) {
       navigator.clipboard.writeText(adminPhone);
@@ -70,8 +77,8 @@ export function DashboardPage({ profile, onProfileUpdate }: DashboardPageProps) 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Bom dia' : hour < 19 ? 'Boa tarde' : 'Boa noite';
 
-  // Find user's active offer (pending_validation only - approved offers become fulfilled)
-  const myActiveOffer = listings.find((l) => l.userId === profile.id && l.type === 'offer' && l.status === 'pending_validation');
+  // Find user's active offer (pending_send or pending_validation)
+  const myActiveOffer = listings.find((l) => l.userId === profile.id && l.type === 'offer' && (l.status === 'pending_validation' || l.status === 'pending_send'));
   const myActiveRequest = listings.find((l) => l.userId === profile.id && l.type === 'request' && l.status === 'active');
 
   // Calculate pending request quantity for weekly quota display
@@ -105,6 +112,7 @@ export function DashboardPage({ profile, onProfileUpdate }: DashboardPageProps) 
 
   const getStatusLabel = (status: string) => {
     switch (status) {
+      case 'pending_send': return 'Aguarda envio';
       case 'pending_validation': return 'Aguarda confirmação';
       case 'active': return 'Ativo';
       case 'fulfilled': return 'Concluído';
@@ -180,7 +188,10 @@ export function DashboardPage({ profile, onProfileUpdate }: DashboardPageProps) 
               <ArrowUpRight className="w-4 h-4 text-green-600" />
               <span className="text-sm font-black text-slate-800">Minha Oferta</span>
             </div>
-            <span className={`text-xs font-bold px-2 py-1 rounded-lg ${myActiveOffer.status === 'pending_validation' ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'}`}>
+            <span className={`text-xs font-bold px-2 py-1 rounded-lg ${
+              myActiveOffer.status === 'pending_send' ? 'bg-sky-100 text-sky-700' :
+              myActiveOffer.status === 'pending_validation' ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'
+            }`}>
               {getStatusLabel(myActiveOffer.status)}
             </span>
           </div>
@@ -196,18 +207,40 @@ export function DashboardPage({ profile, onProfileUpdate }: DashboardPageProps) 
           </div>
           <div className="flex items-center justify-between">
             <span className="text-sm font-bold text-green-700">{myActiveOffer.quantity} selos</span>
-            {adminPhone && myActiveOffer.status === 'pending_validation' && (
-              <button onClick={handleCopyPhone} className="flex items-center gap-1.5 text-xs font-medium text-slate-600 bg-white px-2 py-1 rounded-lg border border-slate-200 hover:bg-slate-50">
-                {copiedPhone ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
-                {copiedPhone ? 'Copiado!' : adminPhone}
-              </button>
-            )}
           </div>
-          {myActiveOffer.status === 'pending_validation' && (
-            <p className="text-xs text-amber-700 bg-amber-50 px-3 py-2 rounded-lg">
-              Envia os selos para o número acima e aguarda confirmação.
-            </p>
+
+          {/* Show admin phone and instructions for both pending_send and pending_validation */}
+          {(myActiveOffer.status === 'pending_send' || myActiveOffer.status === 'pending_validation') && adminPhone && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-2">
+              <p className="text-[10px] font-bold text-amber-600 uppercase tracking-wide">Envia os selos para esta conta admin</p>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-sm font-black text-slate-900">{adminPhone}</span>
+                <button onClick={handleCopyPhone} className="flex items-center gap-1.5 text-xs font-bold text-amber-700 bg-amber-200 hover:bg-amber-300 px-2.5 py-1.5 rounded-lg transition-colors">
+                  {copiedPhone ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                  {copiedPhone ? 'Copiado!' : 'Copiar'}
+                </button>
+              </div>
+              <p className="text-xs text-amber-700">O admin irá validar o teu pedido assim que receber.</p>
+            </div>
           )}
+
+          {/* Confirm sent button for pending_send offers */}
+          {myActiveOffer.status === 'pending_send' && (
+            <button
+              onClick={() => handleConfirmSent(myActiveOffer.id)}
+              disabled={actionLoading === myActiveOffer.id}
+              className="w-full flex items-center justify-center gap-2 py-3 bg-green-600 hover:bg-green-700 text-white text-sm font-bold rounded-xl transition-colors disabled:opacity-50">
+              {actionLoading === myActiveOffer.id ? (
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : (
+                <>
+                  <Send className="w-4 h-4" />
+                  Já enviei os selos
+                </>
+              )}
+            </button>
+          )}
+
           <button
             onClick={() => handleCancel(myActiveOffer.id)}
             disabled={actionLoading === myActiveOffer.id}

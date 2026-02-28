@@ -115,6 +115,12 @@ class ApiClient {
     });
   }
 
+  async confirmSent(id: string) {
+    return this.request<{ listing: import('@stamps-share/shared').StampListingWithProfile }>(`/api/listings/${id}/confirm-sent`, {
+      method: 'PUT',
+    });
+  }
+
   // Collections
   async getCollections() {
     return this.request<{ collections: import('@stamps-share/shared').StampCollectionWithItems[] }>('/api/collections');
@@ -159,6 +165,26 @@ class ApiClient {
 
   async fulfillRequest(id: string) {
     return this.request<{ request: import('@stamps-share/shared').StampListingWithProfile }>(`/api/admin/requests/${id}/fulfill`, {
+      method: 'PUT',
+    });
+  }
+
+  async getCompletedOffers() {
+    return this.request<{ offers: import('@stamps-share/shared').StampListingWithProfile[] }>('/api/admin/completed-offers');
+  }
+
+  async revertOffer(id: string) {
+    return this.request<{ offer: import('@stamps-share/shared').StampListingWithProfile }>(`/api/admin/offers/${id}/revert`, {
+      method: 'PUT',
+    });
+  }
+
+  async getCompletedRequests() {
+    return this.request<{ requests: (import('@stamps-share/shared').StampListingWithProfile & { user: { phone: string } })[] }>('/api/admin/completed-requests');
+  }
+
+  async revertRequest(id: string) {
+    return this.request<{ request: import('@stamps-share/shared').StampListingWithProfile }>(`/api/admin/requests/${id}/revert`, {
       method: 'PUT',
     });
   }
@@ -216,6 +242,10 @@ class ApiClient {
 
   async getSettings() {
     return this.request<{ settings: { id: string; adminDevicePhone: string; updatedAt: string; updatedBy: string | null } }>('/api/admin/settings');
+  }
+
+  async getPublicSettings() {
+    return this.request<{ settings: { adminDevicePhone: string } }>('/api/settings/public');
   }
 
   async updateSettings(data: { adminDevicePhone?: string }) {
