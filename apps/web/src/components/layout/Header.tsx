@@ -19,7 +19,7 @@ export function Header({ profile, onSignOut, onAdmin }: HeaderProps) {
             <span className="text-sm">{tierStyle.icon}</span>
           </div>
           <div>
-            <h1 className="text-sm font-bold text-slate-900 leading-tight">SeloTroca</h1>
+            <h1 className="text-sm font-bold text-slate-900 leading-tight">TrocaSelos</h1>
             <p className="text-[10px] text-slate-400 font-medium leading-tight">Troca de Selos</p>
           </div>
         </div>

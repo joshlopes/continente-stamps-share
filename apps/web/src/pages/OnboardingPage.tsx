@@ -57,7 +57,7 @@ export function OnboardingPage({ onComplete }: OnboardingPageProps) {
           <Stamp className="w-7 h-7 text-green-600" />
         </div>
         <div className="text-center">
-          <h1 className="text-2xl font-black text-slate-900">Bem-vindo ao SeloTroca!</h1>
+          <h1 className="text-2xl font-black text-slate-900">Bem-vindo ao TrocaSelos!</h1>
           <p className="text-sm text-slate-500 mt-1">Completa o teu perfil para começar</p>
         </div>
       </div>

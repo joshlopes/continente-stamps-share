@@ -88,41 +88,28 @@ model OtpCode {
 // ============================================================================
 // Stamp Marketplace
 // ============================================================================
-
-enum ListingType {
-  offer
-  request
-}
-
-enum ListingStatus {
-  pending_send       // Offer created, waiting for user to confirm they sent stamps
-  pending_validation
-  active
-  fulfilled
-  cancelled
-  expired
-  rejected
-}
+// Note: ListingType and ListingStatus are validated at the application level
+// using Zod schemas in @stamps-share/shared. Database stores as plain strings.
 
 model StampListing {
-  id              String        @id @default(uuid())
-  userId          String        @map("user_id")
-  type            ListingType
+  id              String    @id @default(uuid())
+  userId          String    @map("user_id")
+  type            String    // 'offer' | 'request' - validated by Zod
   quantity        Int
   collection      String?
   notes           String?
-  status          ListingStatus @default(active)
-  fulfilledBy     String?       @map("fulfilled_by")
-  fulfilledAt     DateTime?     @map("fulfilled_at")
-  rejectionReason String?       @map("rejection_reason")
-  validatedBy     String?       @map("validated_by")
-  validatedAt     DateTime?     @map("validated_at")
-  expiresAt       DateTime?     @map("expires_at")
-  createdAt       DateTime      @default(now()) @map("created_at")
-  updatedAt       DateTime      @updatedAt @map("updated_at")
+  status          String    @default("active") // validated by Zod ListingStatusSchema
+  fulfilledBy     String?   @map("fulfilled_by")
+  fulfilledAt     DateTime? @map("fulfilled_at")
+  rejectionReason String?   @map("rejection_reason")
+  validatedBy     String?   @map("validated_by")
+  validatedAt     DateTime? @map("validated_at")
+  expiresAt       DateTime? @map("expires_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
 
-  user            Profile       @relation("UserListings", fields: [userId], references: [id])
-  fulfiller       Profile?      @relation("FulfilledListings", fields: [fulfilledBy], references: [id])
+  user            Profile   @relation("UserListings", fields: [userId], references: [id])
+  fulfiller       Profile?  @relation("FulfilledListings", fields: [fulfilledBy], references: [id])
   transactions    StampTransaction[]
 
   @@index([userId, status, type])
@@ -131,26 +118,22 @@ model StampListing {
   @@map("stamp_listings")
 }
 
-enum TransactionType {
-  offer
-  request
-  exchange
-}
+// Note: TransactionType is validated at the application level using Zod schemas.
 
 model StampTransaction {
-  id         String          @id @default(uuid())
-  fromUserId String?         @map("from_user_id")
-  toUserId   String?         @map("to_user_id")
+  id         String    @id @default(uuid())
+  fromUserId String?   @map("from_user_id")
+  toUserId   String?   @map("to_user_id")
   quantity   Int
-  listingId  String?         @map("listing_id")
-  pointsFrom Int             @default(0) @map("points_from")
-  pointsTo   Int             @default(0) @map("points_to")
-  type       TransactionType
-  createdAt  DateTime        @default(now()) @map("created_at")
+  listingId  String?   @map("listing_id")
+  pointsFrom Int       @default(0) @map("points_from")
+  pointsTo   Int       @default(0) @map("points_to")
+  type       String    // 'offer' | 'request' | 'exchange' - validated by Zod
+  createdAt  DateTime  @default(now()) @map("created_at")
 
-  fromUser   Profile?        @relation("TransactionsFrom", fields: [fromUserId], references: [id])
-  toUser     Profile?        @relation("TransactionsTo", fields: [toUserId], references: [id])
-  listing    StampListing?   @relation(fields: [listingId], references: [id])
+  fromUser   Profile?      @relation("TransactionsFrom", fields: [fromUserId], references: [id])
+  toUser     Profile?      @relation("TransactionsTo", fields: [toUserId], references: [id])
+  listing    StampListing? @relation(fields: [listingId], references: [id])
 
   @@index([fromUserId])
   @@index([toUserId])
@@ -231,38 +214,27 @@ model AppSettings {
 // ============================================================================
 // Audit Log
 // ============================================================================
-
-enum AuditAction {
-  // Listing actions
-  listing_created
-  listing_cancelled
-  listing_approved
-  listing_rejected
-  listing_fulfilled
-  listing_quantity_adjusted
-  // Profile actions
-  profile_created
-  profile_updated
-  admin_granted
-  admin_revoked
-}
+// Note: AuditAction is validated at the application level using Zod schemas.
+// Valid values: listing_created, listing_cancelled, listing_approved,
+// listing_rejected, listing_fulfilled, listing_quantity_adjusted,
+// profile_created, profile_updated, admin_granted, admin_revoked
 
 model AuditLog {
-  id            String      @id @default(uuid())
-  action        AuditAction
-  entityType    String      @map("entity_type")  // 'listing', 'profile', etc.
-  entityId      String      @map("entity_id")
-  actorId       String?     @map("actor_id")     // Who performed the action (null for system)
-  targetUserId  String?     @map("target_user_id") // The user affected by the action
-  oldValue      Json?       @map("old_value")    // Previous state (for updates)
-  newValue      Json?       @map("new_value")    // New state
-  metadata      Json?                            // Additional context
-  ipAddress     String?     @map("ip_address")
-  userAgent     String?     @map("user_agent")
-  createdAt     DateTime    @default(now()) @map("created_at")
+  id            String    @id @default(uuid())
+  action        String    // validated by Zod AuditActionSchema
+  entityType    String    @map("entity_type")  // 'listing', 'profile', etc.
+  entityId      String    @map("entity_id")
+  actorId       String?   @map("actor_id")     // Who performed the action (null for system)
+  targetUserId  String?   @map("target_user_id") // The user affected by the action
+  oldValue      Json?     @map("old_value")    // Previous state (for updates)
+  newValue      Json?     @map("new_value")    // New state
+  metadata      Json?                          // Additional context
+  ipAddress     String?   @map("ip_address")
+  userAgent     String?   @map("user_agent")
+  createdAt     DateTime  @default(now()) @map("created_at")
 
-  actor         Profile?    @relation("AuditActor", fields: [actorId], references: [id])
-  targetUser    Profile?    @relation("AuditTarget", fields: [targetUserId], references: [id])
+  actor         Profile?  @relation("AuditActor", fields: [actorId], references: [id])
+  targetUser    Profile?  @relation("AuditTarget", fields: [targetUserId], references: [id])
 
   @@index([entityType, entityId])
   @@index([actorId])

@@ -40,7 +40,7 @@ export function AuthPage({ onSendOtp, onVerifyOtp }: AuthPageProps) {
               <Stamp className="w-5 h-5 text-white" strokeWidth={2.5} />
             </div>
             <div>
-              <p className="font-black text-slate-900 text-lg tracking-tight leading-none">SeloTroca</p>
+              <p className="font-black text-slate-900 text-lg tracking-tight leading-none">TrocaSelos</p>
               <p className="text-xs font-medium text-slate-400 mt-0.5">Troca de selos do supermercado</p>
             </div>
           </div>
