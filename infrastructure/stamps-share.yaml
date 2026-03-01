@@ -26,6 +26,7 @@ services:
       POSTGRES_USER: stampsshare
       POSTGRES_PASSWORD: stampsshare
       POSTGRES_DB: stamps_share
+      PGDATA: /var/lib/postgresql/data
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
