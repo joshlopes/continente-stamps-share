@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.2](https://github.com/joshlopes/continente-stamps-share/compare/v1.4.1...v1.4.2) (2026-05-25)
+
+
+### Bug Fixes
+
+* use 127.0.0.1 in healthcheck to avoid IPv6 resolution failure ([#19](https://github.com/joshlopes/continente-stamps-share/issues/19)) ([fed3dcb](https://github.com/joshlopes/continente-stamps-share/commit/fed3dcbce274f26094dcf31fe35d8255cf3efe3d))
+
 ## [1.4.1](https://github.com/joshlopes/continente-stamps-share/compare/v1.4.0...v1.4.1) (2026-02-28)
 
 
