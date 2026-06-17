@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.3](https://github.com/joshlopes/continente-stamps-share/compare/v1.4.2...v1.4.3) (2026-06-17)
+
+
+### Bug Fixes
+
+* **ci:** deploy to Portainer over an SSH tunnel ([#21](https://github.com/joshlopes/continente-stamps-share/issues/21)) ([6817d0a](https://github.com/joshlopes/continente-stamps-share/commit/6817d0a90f02f3756705127adc27d0023a46e812))
+
 ## [1.4.2](https://github.com/joshlopes/continente-stamps-share/compare/v1.4.1...v1.4.2) (2026-05-25)
 
 
