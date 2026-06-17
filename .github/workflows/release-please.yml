@@ -99,7 +99,11 @@ jobs:
       - name: Deploy to Portainer
         uses: ./.github/actions/portainer-deploy
         with:
-          portainer-url: ${{ secrets.PORTAINER_URL }}
+          ssh-host: ${{ vars.DEPLOY_SSH_HOST }}
+          ssh-user: ${{ vars.DEPLOY_SSH_USER }}
+          ssh-port: ${{ vars.DEPLOY_SSH_PORT }}
+          ssh-key: ${{ secrets.DEPLOY_SSH_KEY }}
+          ssh-known-hosts: ${{ secrets.DEPLOY_SSH_KNOWN_HOSTS }}
           portainer-access-token: ${{ secrets.PORTAINER_ACCESS_TOKEN }}
           stack-id: ${{ secrets.PORTAINER_STACK_ID }}
           endpoint-id: ${{ secrets.PORTAINER_ENDPOINT_ID }}
